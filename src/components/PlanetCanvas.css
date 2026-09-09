@@ -1,8 +1,0 @@
-.planet-canvas-mount {
-  width: 100%;
-  height: 100%;
-}
-
-.planet-canvas-mount canvas {
-  display: block;
-}
