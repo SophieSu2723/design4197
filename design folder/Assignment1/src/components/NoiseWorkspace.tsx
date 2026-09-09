@@ -100,13 +100,24 @@ export default function NoiseWorkspace() {
   const [resetKey, setResetKey] = useState(0);
   const nextId = useRef(2);
   const [running, setRunning] = useState(false);
-  const [rate, setRate] = useState(0.5);
-  const [talus, setTalus] = useState(28);
+  const [rate, setRate] = useState(0.8);
+  const [talus, setTalus] = useState(10);
+  const [speed, setSpeed] = useState(8);
+  const [showOriginal, setShowOriginal] = useState(false);
   const [colored, setColored] = useState(true);
   const baseField = useMemo(() => buildHeightField(settings), [settings]);
   const [simulation, setSimulation] = useState<{ source: Float32Array; field: Float32Array; steps: number } | null>(null);
   const current = simulation?.source === baseField ? simulation : null;
-  const field = current?.field ?? baseField;
+  const evolvedField = current?.field ?? baseField;
+  const field = showOriginal ? baseField : evolvedField;
+  const change = useMemo(() => {
+    let total = 0, max = 0;
+    evolvedField.forEach((h, i) => {
+      const difference = Math.abs(h - baseField[i]) * settings.height;
+      total += difference; max = Math.max(max, difference);
+    });
+    return { mean: total / baseField.length, max };
+  }, [evolvedField, baseField, settings.height]);
   const steps = current?.steps ?? 0;
   const range = useMemo(() => {
     let min = Infinity, max = -Infinity;
@@ -122,16 +133,17 @@ export default function NoiseWorkspace() {
     setRunning(false);
     setSettings(s => ({ ...s, offsetX: s.offsetX + x * s.worldSize / 8, offsetZ: s.offsetZ + z * s.worldSize / 8 }));
   };
-  const resetSimulation = () => { setRunning(false); setSimulation(null); };
+  const resetSimulation = () => { setRunning(false); setSimulation(null); setShowOriginal(false); };
   useEffect(() => {
     if (!running) return;
     const timer = window.setInterval(() => setSimulation(previous => {
       const active = previous?.source === baseField ? previous : null;
-      return { source: baseField, steps: (active?.steps ?? 0) + 1,
-        field: erodeStep(active?.field ?? baseField, settings.resolution, settings.worldSize / settings.resolution, settings.height, talus, rate) };
+      let next = active?.field ?? baseField;
+      for (let i = 0; i < speed; i++) next = erodeStep(next, settings.resolution, settings.worldSize / settings.resolution, settings.height, talus, rate);
+      return { source: baseField, steps: (active?.steps ?? 0) + speed, field: next };
     }), 100);
     return () => window.clearInterval(timer);
-  }, [running, baseField, settings.resolution, settings.worldSize, settings.height, talus, rate]);
+  }, [running, baseField, settings.resolution, settings.worldSize, settings.height, talus, rate, speed]);
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.metaKey || event.altKey || (event.target instanceof HTMLElement && event.target.closest('input, select, textarea, button, [contenteditable="true"]'))) return;
@@ -142,7 +154,7 @@ export default function NoiseWorkspace() {
         const [x, z] = directions[key];
         setSettings(s => ({ ...s, offsetX: s.offsetX + x * s.worldSize / 8, offsetZ: s.offsetZ + z * s.worldSize / 8 }));
       } else if (key === 'f' && !event.repeat) { event.preventDefault(); setWireframe(w => !w); }
-      else if (key === ' ' && !event.repeat) { event.preventDefault(); setRunning(r => !r); }
+      else if (key === ' ' && !event.repeat) { event.preventDefault(); setShowOriginal(false); setRunning(r => !r); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -153,8 +165,12 @@ export default function NoiseWorkspace() {
       <section className="simulation-card" aria-label="Simulation map">
         <div className="simulation-heading"><div><span className="noise-eyebrow">01 / SIMULATION</span><h3>Simulation</h3></div><span className={running ? 'simulation-status active' : 'simulation-status'} role="status" aria-label="Simulation status" aria-live="off">{running ? '● Running' : '○ Stopped'} · {steps} steps</span></div>
         <div className="simulation-body">
-        <div className="simulation-controls"><p>Thermal erosion · relax steep slopes.</p>
-          <div className="simulation-actions"><button className="simulation-start" onClick={() => setRunning(r => !r)}>{running ? '■ Stop simulation' : '▶ Start simulation'}</button><button onClick={resetSimulation}>Reset terrain</button></div>
+        <div className="simulation-controls"><p>Thermal erosion smooths steep slopes; it does not animate the whole surface.</p>
+          <div className="simulation-actions"><button className="simulation-start" onClick={() => { setShowOriginal(false); setRunning(r => !r); }}>{running ? '■ Stop simulation' : '▶ Start simulation'}</button><button onClick={resetSimulation}>Reset terrain</button></div>
+          <button className="simulation-compare" aria-pressed={showOriginal} disabled={!steps} onClick={() => { setRunning(false); setShowOriginal(value => !value); }}>{showOriginal ? 'Show simulated result' : 'Compare: show original'}</button>
+          <p className="simulation-feedback" aria-label="Terrain change">{showOriginal ? 'Viewing original terrain.' : `Height change · mean ${change.mean.toFixed(3)} / max ${change.max.toFixed(3)} units.`}</p>
+          {steps > 0 && change.max < 0.00001 && <p className="noise-hint">No material moved. Lower the stable slope, or increase terrain height if the grid is flat.</p>}
+          <Slider label="Steps per update" value={speed} min={1} max={16} onChange={setSpeed} />
           <Slider label="Erosion rate" value={rate} min={0.05} max={1} step={0.05} onChange={setRate} />
           <Slider label="Stable slope (degrees)" value={talus} min={0} max={60} onChange={setTalus} />
           <label className="simulation-toggle"><input type="checkbox" checked={colored} onChange={e => setColored(e.target.checked)} /> Elevation material · lowlands, grass, rock, snow</label>
@@ -187,7 +203,7 @@ export default function NoiseWorkspace() {
       </section>
       <section><h2><span>04</span> Shape the terrain</h2><label className="noise-select">Shaping operation<select value={settings.shape} onChange={e => update({ shape: e.target.value as Shape })}><option value="none">None · original field</option><option value="power">Power curve · sharpen peaks</option><option value="terrace">Terrace · stepped elevations</option><option value="island">Island · radial falloff</option></select></label>
         {settings.shape !== 'none' && <Slider label="Shaping strength" value={settings.strength} min={0} max={1} step={0.01} onChange={strength => update({ strength })} />}
-      </section><button className="noise-reset" onClick={() => { setSettings(initialGrid); resetSimulation(); setRate(0.5); setTalus(28); setColored(true); setWireframe(false); setResetKey(k => k + 1); }}>Reset all settings</button>
+      </section><button className="noise-reset" onClick={() => { setSettings(initialGrid); resetSimulation(); setRate(0.8); setTalus(10); setSpeed(8); setColored(true); setWireframe(false); setResetKey(k => k + 1); }}>Reset all settings</button>
     </aside>
     <main className="noise-main" aria-label="3D terrain viewport"><div className="noise-main-title"><span className="noise-eyebrow">LIVE TERRAIN / PERSPECTIVE</span><h2>A world from noise.</h2><p>Drag to orbit · Scroll to zoom</p></div>
       <div className="noise-scene"><div className="noise-scene-toolbar"><span><b>3D</b> Displaced grid</span><div><button className={wireframe ? 'selected' : ''} aria-pressed={wireframe} onClick={() => setWireframe(w => !w)}>Wireframe · F</button><button onClick={() => setResetKey(k => k + 1)}>Reset view</button></div></div>
@@ -200,7 +216,7 @@ export default function NoiseWorkspace() {
           <figure><HeightMap field={field} resolution={settings.resolution} colored /><figcaption>ELEVATION</figcaption></figure>
         </div><div className="noise-map-meta"><span>{settings.resolution + 1} × {settings.resolution + 1} samples</span><span>N ↑</span></div></div>
       </details>
-      <div className="noise-world-hud"><span className={running ? 'hud-dot running' : 'hud-dot'} />{running ? 'SIMULATING' : 'READY'}<span>X {settings.offsetX.toFixed(1)} / Z {settings.offsetZ.toFixed(1)}</span></div>
+      <div className="noise-world-hud"><span className={running ? 'hud-dot running' : 'hud-dot'} />{showOriginal ? 'ORIGINAL' : running ? 'SIMULATING' : 'READY'}<span>X {settings.offsetX.toFixed(1)} / Z {settings.offsetZ.toFixed(1)}</span></div>
     </main></div>
   </div>;
 }

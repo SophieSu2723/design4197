@@ -19,10 +19,10 @@ test('start advances the simulation, stop freezes it, and reset clears it', () =
   render(<NoiseWorkspace />);
   fireEvent.click(screen.getByRole('button', { name: /Start simulation/ }));
   act(() => { jest.advanceTimersByTime(300); });
-  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('3 steps');
+  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('24 steps');
   fireEvent.click(screen.getByRole('button', { name: /Stop simulation/ }));
   act(() => { jest.advanceTimersByTime(500); });
-  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('Stopped · 3 steps');
+  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('Stopped · 24 steps');
   fireEvent.click(screen.getByRole('button', { name: 'Reset terrain' }));
   expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('0 steps');
 });
@@ -34,7 +34,7 @@ test('keyboard shortcuts toggle wireframe and simulation; navigation resets the 
   expect(wireframe.getAttribute('aria-pressed')).toBe('true');
   fireEvent.keyDown(window, { key: ' ' });
   act(() => { jest.advanceTimersByTime(100); });
-  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('Running · 1 steps');
+  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('Running · 8 steps');
   fireEvent.keyDown(window, { key: 'ArrowRight' });
   expect(screen.getByText(/World origin:/).textContent).toContain('X 1.50');
   expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('Stopped · 0 steps');
@@ -50,4 +50,17 @@ test('editing grid settings stops erosion and shortcuts leave form controls alon
   expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('Stopped · 0 steps');
   fireEvent.keyDown(resolution, { key: 'f' });
   expect(screen.getByRole('button', { name: /Wireframe/ }).getAttribute('aria-pressed')).toBe('false');
+});
+
+test('default simulation produces measurable change and supports original/result comparison', () => {
+  render(<NoiseWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: /Start simulation/ }));
+  act(() => { jest.advanceTimersByTime(1000); });
+  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('80 steps');
+  expect(screen.getByLabelText('Terrain change').textContent).not.toContain('max 0.000');
+  fireEvent.click(screen.getByRole('button', { name: 'Compare: show original' }));
+  expect(screen.getByLabelText('Terrain change').textContent).toBe('Viewing original terrain.');
+  expect(screen.getByRole('status', { name: 'Simulation status' }).textContent).toContain('Stopped');
+  fireEvent.click(screen.getByRole('button', { name: 'Show simulated result' }));
+  expect(screen.getByLabelText('Terrain change').textContent).toContain('Height change');
 });
