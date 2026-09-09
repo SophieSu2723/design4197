@@ -1,0 +1,50 @@
+.image-drop-zone {
+  min-height: 80px;
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #f0f0f0;
+  border: 1px dashed #999;
+  border-radius: 1px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.image-drop-zone:hover:not(.disabled) {
+  background: #e8e8e8;
+  border-color: #666;
+}
+
+.image-drop-zone.dragging {
+  border-color: #333;
+  background: #e0e0e0;
+}
+
+.image-drop-zone.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.image-drop-zone-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.image-drop-zone-text {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  color: #111;
+  letter-spacing: 0.5px;
+}
+
+.image-drop-zone-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  color: #555;
+}

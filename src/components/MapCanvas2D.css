@@ -1,0 +1,23 @@
+.map-canvas-mount {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #080810;
+}
+
+.map-canvas {
+  width: min(92%, 1100px);
+  border: 1px solid #222233;
+  image-rendering: pixelated;
+}
+
+.map-caption {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: #666688;
+  letter-spacing: 0.5px;
+}

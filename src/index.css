@@ -1,0 +1,46 @@
+/* ---- Reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 11px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  background: #0a0a12;
+  color: #ccccee;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+::selection {
+  background: #4444aa;
+  color: #fff;
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0e0e18;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a44;
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a66;
+}
