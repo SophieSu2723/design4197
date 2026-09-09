@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { buildHeightField, Equation, GridSettings, initialGrid, NoiseLayer, Shape } from '../utils/gridNoise';
+import { buildHeightField, Equation, GridSettings, initialGrid, NoiseLayer, sampledFrequency, sampledOctaves, Shape } from '../utils/gridNoise';
+import { erodeStep, terrainColor } from '../utils/simulation';
 import './NoiseWorkspace.css';
 
 function Slider({ label, value, min, max, step = 1, onChange }: {
   label: string; value: number; min: number; max: number; step?: number; onChange: (n: number) => void;
 }) {
   return <label className="noise-slider"><span>{label}<output>{Number(value.toFixed(2))}</output></span>
-    <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} /></label>;
+    <input type="range" aria-label={label} min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} /></label>;
 }
-function HeightMap({ field, resolution }: { field: Float32Array; resolution: number }) {
+function HeightMap({ field, resolution, colored = false }: { field: Float32Array; resolution: number; colored?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = ref.current!;
@@ -20,15 +21,16 @@ function HeightMap({ field, resolution }: { field: Float32Array; resolution: num
     if (!ctx) return;
     const pixels = ctx.createImageData(side, side);
     field.forEach((height, i) => {
-      pixels.data[i * 4] = pixels.data[i * 4 + 1] = pixels.data[i * 4 + 2] = Math.round(height * 255);
+      const rgb = colored ? terrainColor(height) : [height * 255, height * 255, height * 255];
+      pixels.data[i * 4] = rgb[0]; pixels.data[i * 4 + 1] = rgb[1]; pixels.data[i * 4 + 2] = rgb[2];
       pixels.data[i * 4 + 3] = 255;
     });
     ctx.putImageData(pixels, 0, 0);
-  }, [field, resolution]);
-  return <canvas ref={ref} aria-label="2D grayscale noise heightmap: black is low, white is high" />;
+  }, [field, resolution, colored]);
+  return <canvas ref={ref} aria-label={colored ? "Simulation topography map colored by elevation" : "2D grayscale noise heightmap: black is low, white is high"} />;
 }
-function GridView({ field, resolution, height, wireframe, resetKey }: {
-  field: Float32Array; resolution: number; height: number; wireframe: boolean; resetKey: number;
+function GridView({ field, resolution, height, wireframe, resetKey, colored }: {
+  field: Float32Array; resolution: number; height: number; wireframe: boolean; resetKey: number; colored: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<{ mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial>; renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: OrbitControls } | null>(null);
@@ -78,12 +80,13 @@ function GridView({ field, resolution, height, wireframe, resetKey }: {
     const low = new THREE.Color('#245965'), high = new THREE.Color('#d4eec0');
     field.forEach((h, i) => {
       positions.setY(i, h * height);
-      const color = low.clone().lerp(high, h);
+      const rgb = terrainColor(h);
+      const color = colored ? new THREE.Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace) : low.clone().lerp(high, h);
       colors[i * 3] = color.r; colors[i * 3 + 1] = color.g; colors[i * 3 + 2] = color.b;
     });
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3)); geometry.computeVertexNormals();
     state.mesh.geometry.dispose(); state.mesh.geometry = geometry;
-  }, [field, resolution, height]);
+  }, [field, resolution, height, colored]);
   useEffect(() => { if (sceneRef.current) sceneRef.current.mesh.material.wireframe = wireframe; }, [wireframe]);
   useEffect(() => {
     const state = sceneRef.current; if (!state) return;
@@ -93,20 +96,68 @@ function GridView({ field, resolution, height, wireframe, resetKey }: {
 }
 export default function NoiseWorkspace() {
   const [settings, setSettings] = useState<GridSettings>(initialGrid);
-  const [wireframe, setWireframe] = useState(true);
+  const [wireframe, setWireframe] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const nextId = useRef(2);
-  const field = useMemo(() => buildHeightField(settings), [settings]);
-  const update = (patch: Partial<GridSettings>) => setSettings(s => ({ ...s, ...patch }));
-  const updateLayer = (id: number, patch: Partial<NoiseLayer>) => setSettings(s => ({ ...s, layers: s.layers.map(l => l.id === id ? { ...l, ...patch } : l) }));
+  const [running, setRunning] = useState(false);
+  const [rate, setRate] = useState(0.5);
+  const [talus, setTalus] = useState(28);
+  const [colored, setColored] = useState(true);
+  const baseField = useMemo(() => buildHeightField(settings), [settings]);
+  const [simulation, setSimulation] = useState<{ source: Float32Array; field: Float32Array; steps: number } | null>(null);
+  const current = simulation?.source === baseField ? simulation : null;
+  const field = current?.field ?? baseField;
+  const steps = current?.steps ?? 0;
+  const range = useMemo(() => {
+    let min = Infinity, max = -Infinity;
+    field.forEach(h => { min = Math.min(min, h); max = Math.max(max, h); });
+    return { min: min * settings.height, max: max * settings.height };
+  }, [field, settings.height]);
+  const limitedLayers = settings.layers.filter(l => l.enabled && l.weight > 0 && (sampledOctaves(l, settings) < l.octaves || sampledFrequency(l, settings) < l.frequency)).length;
+  const update = (patch: Partial<GridSettings>) => { setRunning(false); setSettings(s => ({ ...s, ...patch })); };
+  const updateLayer = (id: number, patch: Partial<NoiseLayer>) => {
+    setRunning(false); setSettings(s => ({ ...s, layers: s.layers.map(l => l.id === id ? { ...l, ...patch } : l) }));
+  };
+  const move = (x: number, z: number) => {
+    setRunning(false);
+    setSettings(s => ({ ...s, offsetX: s.offsetX + x * s.worldSize / 8, offsetZ: s.offsetZ + z * s.worldSize / 8 }));
+  };
+  const resetSimulation = () => { setRunning(false); setSimulation(null); };
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setSimulation(previous => {
+      const active = previous?.source === baseField ? previous : null;
+      return { source: baseField, steps: (active?.steps ?? 0) + 1,
+        field: erodeStep(active?.field ?? baseField, settings.resolution, settings.worldSize / settings.resolution, settings.height, talus, rate) };
+    }), 100);
+    return () => window.clearInterval(timer);
+  }, [running, baseField, settings.resolution, settings.worldSize, settings.height, talus, rate]);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || (event.target instanceof HTMLElement && event.target.closest('input, select, textarea, button, [contenteditable="true"]'))) return;
+      const key = event.key.toLowerCase();
+      const directions: Record<string, [number, number]> = { w: [0, -1], arrowup: [0, -1], s: [0, 1], arrowdown: [0, 1], a: [-1, 0], arrowleft: [-1, 0], d: [1, 0], arrowright: [1, 0] };
+      if (directions[key]) {
+        event.preventDefault(); setRunning(false);
+        const [x, z] = directions[key];
+        setSettings(s => ({ ...s, offsetX: s.offsetX + x * s.worldSize / 8, offsetZ: s.offsetZ + z * s.worldSize / 8 }));
+      } else if (key === 'f' && !event.repeat) { event.preventDefault(); setWireframe(w => !w); }
+      else if (key === ' ' && !event.repeat) { event.preventDefault(); setRunning(r => !r); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   return <div className="noise-app">
     <header className="noise-header"><div className="noise-brand"><span className="noise-logo">▧</span><strong>FIELD / LAB</strong><span className="noise-divider" /><span>Procedural terrain studio</span></div><span className="noise-eyebrow">ASSIGNMENT 01</span></header>
     <div className="noise-layout"><aside className="noise-controls">
       <div className="noise-intro"><span className="noise-eyebrow">ASSIGNMENT 01</span><h1>A world from noise.</h1><p>Shape a field of numbers into a landscape.</p></div>
-      <section><h2><span>01</span> Grid & displacement</h2>
+      <section><h2><span>01</span> Grid & calibration</h2>
         <Slider label="Grid resolution" value={settings.resolution} min={16} max={160} step={8} onChange={resolution => update({ resolution })} />
         <Slider label="Height scale" value={settings.height} min={0} max={10} step={0.1} onChange={height => update({ height })} />
-        <p className="noise-hint">{(settings.resolution + 1).toLocaleString()} × {(settings.resolution + 1).toLocaleString()} vertices · 12 × 12 world units</p>
+        <Slider label="World span" value={settings.worldSize} min={6} max={48} step={1} onChange={worldSize => update({ worldSize })} />
+        <p className="noise-hint">{settings.resolution + 1} × {settings.resolution + 1} samples in both maps · {(settings.worldSize / settings.resolution).toFixed(3)} units per cell.</p>
+        <p className="noise-hint">{limitedLayers ? `${limitedLayers} layer(s) use limited frequency or octaves to keep detail resolvable at this grid spacing.` : 'Noise detail fits the current grid spacing.'}</p>
+        <button className="noise-add" onClick={() => { setRunning(false); setSettings(s => ({ ...s, resolution: 128, worldSize: 12, height: 3, shape: 'none', layers: [{ ...initialGrid.layers[0], frequency: 2, octaves: 4, persistence: 0.45 }] })); }}>Calibrate rolling hills</button>
       </section>
       <section><h2><span>02</span> Noise layers <span className="noise-count">{settings.layers.length}</span></h2>
         <p className="noise-hint">Enabled layers blend by relative weight.</p>
@@ -124,15 +175,28 @@ export default function NoiseWorkspace() {
       </section>
       <section><h2><span>03</span> Shape the terrain</h2><label className="noise-select">Shaping operation<select value={settings.shape} onChange={e => update({ shape: e.target.value as Shape })}><option value="none">None · original field</option><option value="power">Power curve · sharpen peaks</option><option value="terrace">Terrace · stepped elevations</option><option value="island">Island · radial falloff</option></select></label>
         {settings.shape !== 'none' && <Slider label="Shaping strength" value={settings.strength} min={0} max={1} step={0.01} onChange={strength => update({ strength })} />}
-      </section><button className="noise-reset" onClick={() => { setSettings(initialGrid); setWireframe(true); setResetKey(k => k + 1); }}>Reset all settings</button>
+      </section><button className="noise-reset" onClick={() => { setSettings(initialGrid); resetSimulation(); setRate(0.5); setTalus(28); setColored(true); setWireframe(false); setResetKey(k => k + 1); }}>Reset all settings</button>
     </aside>
     <main className="noise-main"><div className="noise-main-title"><div><span className="noise-eyebrow">LIVE WORKSPACE</span><h2>Explore the surface</h2></div><span className="noise-live">● Synchronized views</span></div>
-      <div className="noise-scene"><div className="noise-scene-toolbar"><span><b>3D</b> Displaced grid</span><div><button className={wireframe ? 'selected' : ''} aria-pressed={wireframe} onClick={() => setWireframe(w => !w)}>Wireframe</button><button onClick={() => setResetKey(k => k + 1)}>Reset view</button></div></div>
-        <GridView field={field} resolution={settings.resolution} height={settings.height} wireframe={wireframe} resetKey={resetKey} />
+      <div className="noise-scene"><div className="noise-scene-toolbar"><span><b>3D</b> Displaced grid</span><div><button className={wireframe ? 'selected' : ''} aria-pressed={wireframe} onClick={() => setWireframe(w => !w)}>Wireframe · F</button><button onClick={() => setResetKey(k => k + 1)}>Reset view</button></div></div>
+        <GridView field={field} resolution={settings.resolution} height={settings.height * 12 / settings.worldSize} wireframe={wireframe} resetKey={resetKey} colored={colored} />
         <div className="noise-scene-footer"><span>Drag to orbit · Scroll to zoom · Right-drag to pan</span><span>{(settings.resolution ** 2 * 2).toLocaleString()} triangles</span></div>
       </div>
-      <div className="noise-bottom"><section className="noise-map-card"><div><span className="noise-eyebrow">2D / HEIGHT FIELD</span><h3>The same noise, from above.</h3><p>Each pixel maps to a grid vertex. Brighter values become higher points on the surface.</p><div className="noise-legend" /><div className="noise-legend-labels"><span>0 · Low</span><span>1 · High</span></div></div><HeightMap field={field} resolution={settings.resolution} /></section>
-      <section className="noise-equation-card"><span className="noise-eyebrow">HOW IT CONNECTS</span><h3>Noise → blend → shape → height</h3><code>y = shape(Σ wᵢ · noiseᵢ / Σ wᵢ) × height</code><p>Change a parameter to see both views update. Set height to zero to reveal the original flat grid.</p></section></div>
+      <section className="simulation-card" aria-label="Simulation map">
+        <div className="simulation-heading"><div><span className="noise-eyebrow">SIMULATION MAP / THERMAL EROSION</span><h3>Let the landscape settle.</h3></div><span className={running ? 'simulation-status active' : 'simulation-status'} role="status" aria-label="Simulation status" aria-live="off">{running ? '● Running' : '○ Stopped'} · {steps} steps</span></div>
+        <div className="simulation-body"><div className="simulation-preview"><HeightMap field={field} resolution={settings.resolution} colored={colored} /><span>N ↑ · X → · Z ↓</span></div>
+        <div className="simulation-controls"><p>Steep slopes shed material into neighboring cells. Start to evolve the height field; stop to inspect it in both views.</p>
+          <div className="simulation-actions"><button className="simulation-start" onClick={() => setRunning(r => !r)}>{running ? '■ Stop simulation' : '▶ Start simulation'}</button><button onClick={resetSimulation}>Reset terrain</button></div>
+          <Slider label="Erosion rate" value={rate} min={0.05} max={1} step={0.05} onChange={setRate} />
+          <Slider label="Stable slope (degrees)" value={talus} min={0} max={60} onChange={setTalus} />
+          <label className="simulation-toggle"><input type="checkbox" checked={colored} onChange={e => setColored(e.target.checked)} /> Elevation material · lowlands, grass, rock, snow</label>
+          <div className="simulation-stats"><span>Elevation <b>{range.min.toFixed(2)}–{range.max.toFixed(2)}</b></span><span>Cell width <b>{(settings.worldSize / settings.resolution).toFixed(3)}</b></span><span>Map size <b>{settings.resolution + 1}²</b></span></div>
+        </div></div>
+        <div className="simulation-navigation"><div><strong>Explore beyond the frame</strong><p>WASD / arrows to travel · F for wireframe · Space to start / stop</p><p>Moving or editing the noise resets erosion. Returning regenerates the original field.</p></div><div className="simulation-directions"><button aria-label="Move north" onClick={() => move(0, -1)}>↑</button><button aria-label="Move west" onClick={() => move(-1, 0)}>←</button><button onClick={() => update({ offsetX: 0, offsetZ: 0 })}>Home</button><button aria-label="Move east" onClick={() => move(1, 0)}>→</button><button aria-label="Move south" onClick={() => move(0, 1)}>↓</button></div></div>
+        <div className="simulation-location">World origin: X {settings.offsetX.toFixed(2)} / Z {settings.offsetZ.toFixed(2)} · Span {settings.worldSize} units · {settings.shape === 'island' ? 'Island falloff stays anchored at world (6, 6).' : 'Continuous world coordinates; no repeating tile boundary.'}</div>
+      </section>
+      <div className="noise-bottom"><section className="noise-map-card"><div><span className="noise-eyebrow">2D / HEIGHT FIELD</span><h3>The same noise, from above.</h3><p>Each pixel maps to a grid vertex, including simulated changes. Brighter values become higher points on the surface.</p><div className="noise-legend" /><div className="noise-legend-labels"><span>0 · Low</span><span>1 · High</span></div></div><HeightMap field={field} resolution={settings.resolution} /></section>
+      <section className="noise-equation-card"><span className="noise-eyebrow">HOW IT CONNECTS</span><h3>Noise → shape → simulate → height</h3><code>y = shape(Σ wᵢ · noiseᵢ / Σ wᵢ) × height</code><p>Start from the noise stack, then relax slopes with thermal erosion. Set height to zero to reveal the original flat grid.</p></section></div>
       <footer className="noise-footer"><span>PROCEDURAL WORLD BUILDING</span><span>01 / Noise & terrain</span></footer>
     </main></div>
   </div>;
