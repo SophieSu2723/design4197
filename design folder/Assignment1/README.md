@@ -1,6 +1,16 @@
-# Assignment 1 — Noise Studio
+# Assignment 1 — Noise & Voxel Studio
 
 An interactive React, TypeScript, and Three.js assignment exploring procedural noise and terrain.
+
+Use the top navigation to switch between **Noise field** and **Voxel terrain**. Each workspace starts fresh when opened; switching tabs releases its renderer and working data.
+
+## Voxel terrain assignment
+
+The separate Voxel terrain workspace implements a true 3D density field, six base fields (noise terrain, noise caves, sphere, box, torus, capsule), an ordered stack of up to eight CSG operations, marching cubes, and an exposed-face block mesher. You can enable, remove, move, resize and reorder operations, compare resolutions and chunk sizes, inspect wireframes and chunk bounds, and read measured build statistics.
+
+Start with **Carved terrain**, add a union sphere, and move it into the carved area. Move the union above the subtraction to see the carving remove it. Try **Cave network** to explore multiple surfaces at the same X/Z coordinate. **Torus study** demonstrates a density shape with a hole.
+
+The controls include field notes covering each assignment requirement. See [VOXEL_NOTES.md](VOXEL_NOTES.md) for equations, chunking tradeoffs, a measured experiment, meshing alternatives, implementation details and limitations.
 
 ## Run locally
 
@@ -57,4 +67,4 @@ CI=true npm test -- --watchAll=false --runInBand
 
 ## Credits
 
-Adapted from [Procedural World Building](https://github.com/jomasan/Procedural-World-Building). The noise utility is based on that project's value-noise implementation. This version contains only the Assignment 1 noise studio.
+Adapted from [Procedural World Building](https://github.com/jomasan/Procedural-World-Building). The noise utility is based on that project's value-noise implementation. The marching-cubes triangle lookup table comes from the installed Three.js distribution; its MIT notice is retained in `src/utils/marchingTables.ts`.
