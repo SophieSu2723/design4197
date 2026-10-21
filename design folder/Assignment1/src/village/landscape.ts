@@ -24,6 +24,7 @@ export function excluded(x: number, z: number) {
 }
 export interface TerrainCell { x: number; z: number; elevation: number; slope: number; waterDistance: number; drainage: number; fertility: number }
 export interface VegetationSite { x: number; z: number; cell: number; kind: 'grass' | 'flower' | 'shrub' | 'tree' | 'rock'; scale: number; rotation: number }
+const habitatNoise = (x: number, z: number, seed: number) => sampleNoise(x * 0.075 + seed * 0.013, z * 0.075 - seed * 0.017, 1.7, 'value', 2, 0.55, 2);
 export interface Landscape { cells: TerrainCell[]; sites: VegetationSite[] }
 export function createLandscape(seed: number): Landscape {
   let state = seed >>> 0;
@@ -37,18 +38,34 @@ export function createLandscape(seed: number): Landscape {
   });
   const sites: VegetationSite[] = [];
   const trees: { x: number; z: number }[] = [];
-  for (let i = 0; i < 7500; i++) {
+  // Vegetation is sampled from habitat rules rather than uniform decoration.
+  // Moist river margins favor grasses/shrubs; fertile flats favor flowers;
+  // wooded patches form on stable, moderately moist ground; steep slopes expose rock.
+  for (let i = 0; i < 10500; i++) {
     const x = random() * 39 - 19.5, z = random() * 39 - 19.5, cell = cellIndex(x, z), c = cells[cell];
-    if (excluded(x, z) || Math.abs(x - riverX(z)) < 1.65) continue;
-    const moisture = Math.max(0.25, 0.8 - c.waterDistance * 0.025);
-    const suitability = Math.max(0, c.fertility * moisture * (1 - c.slope / 1.1));
-    const choice = random(); let kind: VegetationSite['kind'] = 'grass';
-    if (choice < 0.028 && c.waterDistance > 3 && c.elevation > 0.8 && c.slope < 0.65 && trees.every(t => Math.hypot(t.x - x, t.z - z) > 2.8)) { kind = 'tree'; trees.push({ x, z }); }
-    else if (choice < 0.045 && c.slope > 0.28 && random() < 0.4) kind = 'rock';
-    else if (choice < 0.1 && moisture > 0.35) kind = 'shrub';
-    else if (choice < 0.25 && c.fertility > 0.7 && c.slope < 0.4) kind = 'flower';
-    if (kind !== 'rock' && random() > suitability * 1.9) continue;
-    sites.push({ x, z, cell, kind, scale: 0.7 + random() * 0.7, rotation: random() * Math.PI * 2 });
+    if (excluded(x, z) || c.waterDistance < 1.35) continue;
+    const moisture = Math.max(0.12, Math.min(1, 0.96 - c.waterDistance * 0.032 - c.slope * 0.18));
+    const patch = Math.max(0, Math.min(1, habitatNoise(x, z, seed) * 0.65 + 0.38));
+    const flatness = Math.max(0, 1 - c.slope / 0.82);
+    const vigor = Math.max(0, Math.min(1, c.fertility * 0.48 + moisture * 0.34 + flatness * 0.18));
+
+    let kind: VegetationSite['kind'] = 'grass';
+    const roll = random();
+    const rocky = c.slope > 0.34 && (1 - flatness) * (0.35 + patch) > random();
+    const woodland = c.waterDistance > 2.4 && c.waterDistance < 15 && c.slope < 0.52 && patch > 0.56 && vigor > 0.48;
+    const riparian = c.waterDistance < 4.3 && moisture > 0.62;
+    const meadow = c.slope < 0.3 && c.fertility > 0.67 && patch > 0.38;
+
+    if (rocky && roll < 0.18) kind = 'rock';
+    else if (woodland && roll < 0.075 && trees.every(t => Math.hypot(t.x - x, t.z - z) > 2.05)) {
+      kind = 'tree'; trees.push({ x, z });
+    } else if ((riparian || woodland) && roll < 0.22) kind = 'shrub';
+    else if (meadow && roll < 0.34) kind = 'flower';
+
+    const density = kind === 'rock' ? 0.72 : kind === 'tree' ? vigor * patch : kind === 'shrub' ? vigor * (0.65 + patch * 0.35) : vigor * (0.72 + patch * 0.42);
+    if (random() > Math.min(0.94, density)) continue;
+    const scaleBase = kind === 'tree' ? 0.82 : kind === 'rock' ? 0.72 : 0.62;
+    sites.push({ x, z, cell, kind, scale: scaleBase + random() * (kind === 'tree' ? 0.62 : 0.58), rotation: random() * Math.PI * 2 });
   }
   return { cells, sites };
 }
