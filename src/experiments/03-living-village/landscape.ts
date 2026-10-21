@@ -1,4 +1,4 @@
-import { sampleNoise } from '../utils/noise';
+import { sampleNoise } from '../../utils/noise';
 export const WORLD_SIZE = 40, CELL_COUNT = 32, CELL_WIDTH = WORLD_SIZE / CELL_COUNT;
 export const riverX = (z: number) => 2 + Math.sin(z * 0.15) * 3;
 export const riverBed = (z: number) => -0.7 + (z + 20) * 0.018;

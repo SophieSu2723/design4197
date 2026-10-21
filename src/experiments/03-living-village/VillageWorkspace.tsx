@@ -1,8 +1,8 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
 import FarmView from './FarmView';
 import { actOnPlot, advanceDay, advanceDays, createWorld, cropStatus, defaultParameters, expectedYield, Parameters, WorldState, validateParameters } from './simulation';
-import '../components/NoiseWorkspace.css';
-import Slider from '../components/LabSlider';
+import '../../components/NoiseWorkspace.css';
+import Slider from '../../components/LabSlider';
 import './village.css';
 import { arrivalEligibility, cancelInvitation, inspectPlacement, inviteMina, movePopulation, Point, populationRules, recentHarvest, residentCount, settleMina } from './population';
 
