@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
-import FarmView from './FarmView';
+import FarmView from './rendering/FarmView';
 import { actOnPlot, advanceDay, advanceDays, createWorld, cropStatus, defaultParameters, expectedYield, Parameters, WorldState, validateParameters } from './simulation';
 import '../../components/NoiseWorkspace.css';
 import Slider from '../../components/LabSlider';

@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, cleanup, within } from '@testing-librar
 import VillageWorkspace from './VillageWorkspace';
 import { createWorld, advanceDays, actOnPlot } from './simulation';
 import { movePopulation } from './population';
-jest.mock('./FarmView', () => () => <div>Farm placeholder</div>);
+jest.mock('./rendering/FarmView', () => () => <div>Farm placeholder</div>);
 afterEach(() => { cleanup(); jest.useRealTimers(); });
 test('advance 30 days exposes every daily metric and reset clears the experiment', () => {
   render(<VillageWorkspace />);
