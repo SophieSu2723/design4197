@@ -53,7 +53,7 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
   useEffect(() => {
     const container = host.current!; let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch { setError(true); return; }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
     renderer.domElement.setAttribute('aria-label', 'Living valley: drag to orbit, scroll to zoom, right-drag to pan, click farm plots to select'); container.appendChild(renderer.domElement);
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#10191d'); scene.fog = new THREE.Fog('#10191d', 48, 105);
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200); camera.position.set(32, 31, 40);
@@ -66,8 +66,8 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     const position = geometry.attributes.position;
     for (let i = 0; i < position.count; i++) position.setY(i, terrainHeight(position.getX(i), position.getZ(i)));
     geometry.computeVertexNormals(); geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(position.count * 3), 3));
-    const terrain = addMesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
-    const water = addMesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: '#497a7c', roughness: 0.28, metalness: 0.25, transparent: true, opacity: 0.84, side: THREE.DoubleSide })); water.castShadow = false;
+    const terrain = addMesh(geometry, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.96 }));
+    const water = addMesh(new THREE.BufferGeometry(), new THREE.MeshPhysicalMaterial({ color: '#557f7d', roughness: 0.18, metalness: 0.02, transmission: 0.08, transparent: true, opacity: 0.82, side: THREE.DoubleSide })); water.castShadow = false;
     const crops = new THREE.Group(); root.add(crops);
     // Paths follow terrain, excluding plants during world generation.
     const pathMaterial = material('#9b9075');
@@ -119,8 +119,17 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
   useEffect(() => {
     const state = view.current; if (!state) return;
     const positions = state.terrain.geometry.attributes.position, colors = state.terrain.geometry.attributes.color;
-    const color = new THREE.Color();
-    for (let i = 0; i < positions.count; i++) { const x = positions.getX(i), z = positions.getZ(i), c = world.ecology.cells[cellIndex(x, z)]; color.set('#8c916b').lerp(new THREE.Color('#455b43'), c.soilMoisture); const slope = world.landscape.cells[cellIndex(x, z)].slope; if (slope > 0.45) color.lerp(new THREE.Color('#858575'), Math.min(0.8, slope)); if (Math.abs(x - riverX(z)) < 2) color.lerp(new THREE.Color('#727465'), 0.7); colors.setXYZ(i, color.r, color.g, color.b); } colors.needsUpdate = true;
+    const color = new THREE.Color(), dryGrass = new THREE.Color('#8f916b'), wetGrass = new THREE.Color('#53694b'), richGround = new THREE.Color('#4b523c'), rockColor = new THREE.Color('#77796e'), bankColor = new THREE.Color('#696b58');
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i), z = positions.getZ(i), eco = world.ecology.cells[cellIndex(x, z)], land = world.landscape.cells[cellIndex(x, z)];
+      const moisture = THREE.MathUtils.clamp(eco.soilMoisture, 0, 1), fertility = THREE.MathUtils.clamp(land.fertility, 0, 1);
+      color.copy(dryGrass).lerp(wetGrass, moisture * 0.78).lerp(richGround, fertility * moisture * 0.28);
+      const rockBlend = THREE.MathUtils.smoothstep(land.slope, 0.34, 0.72);
+      color.lerp(rockColor, rockBlend * 0.78);
+      const bankBlend = 1 - THREE.MathUtils.smoothstep(Math.abs(x - riverX(z)), 1.25, 3.1);
+      color.lerp(bankColor, bankBlend * (0.38 + moisture * 0.25));
+      colors.setXYZ(i, color.r, color.g, color.b);
+    } colors.needsUpdate = true;
     const vertices: number[] = [], indices: number[] = [];
     for (let i = 0; i <= 100; i++) {
       const z = i * 0.4 - 20, center = riverX(z), y = riverBed(z) + world.ecology.riverLevel;
