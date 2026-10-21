@@ -1,16 +1,18 @@
 import { useState } from 'react';
+import VillageWorkspace from './village/VillageWorkspace';
 import NoiseWorkspace from './components/NoiseWorkspace';
 import VoxelWorkspace from './components/VoxelWorkspace';
 import './components/WorkspaceTabs.css';
 
 export default function App() {
-  const [tab, setTab] = useState<'noise' | 'voxel'>('noise');
+  const [tab, setTab] = useState<'noise' | 'voxel' | 'village'>('village');
   return <div className="workspace-shell">
     <nav className="workspace-tabs" aria-label="Assignment workspaces">
       <span>FIELD / LAB <small>ASSIGNMENT 01</small></span>
       <button aria-pressed={tab === 'noise'} onClick={() => setTab('noise')}>01 / Noise field</button>
       <button aria-pressed={tab === 'voxel'} onClick={() => setTab('voxel')}>02 / Voxel terrain</button>
+      <button aria-pressed={tab === 'village'} onClick={() => setTab('village')}>03 / Living Village</button>
     </nav>
-    {tab === 'noise' ? <NoiseWorkspace /> : <VoxelWorkspace />}
+    {tab === 'noise' ? <NoiseWorkspace /> : tab === 'voxel' ? <VoxelWorkspace /> : <VillageWorkspace />}
   </div>;
 }
