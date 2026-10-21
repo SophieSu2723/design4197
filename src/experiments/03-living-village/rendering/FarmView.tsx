@@ -10,16 +10,16 @@ import { createVegetation, grassGeometry, updateVegetation, VegetationRenderEntr
 
 const material = (color: string) => new THREE.MeshStandardMaterial({ color, roughness: 0.95 });
 interface SceneState {
-  root: THREE.Group; people: THREE.Group; bakery: THREE.Group; terrain: THREE.Mesh; water: THREE.Mesh; crops: THREE.Group;
+  root: THREE.Group; people: THREE.Group; bakery: THREE.Group; debug: THREE.Group; terrain: THREE.Mesh; water: THREE.Mesh; crops: THREE.Group;
   vegetation: VegetationRenderEntry[];
   camera: THREE.PerspectiveCamera; controls: OrbitControls;
 }
 function dispose(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
-  root.traverse(object => { if (object instanceof THREE.Sprite) { object.material.map?.dispose(); materials.add(object.material); } if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => materials.add(m)); } });
+  root.traverse(object => { if (object instanceof THREE.Line) { geometries.add(object.geometry); materials.add(object.material as THREE.Material); } if (object instanceof THREE.Sprite) { object.material.map?.dispose(); materials.add(object.material); } if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => materials.add(m)); } });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
 }
-export default function FarmView({ world, selected, onSelect, wireframe = false, resetKey = 0, onPlace }: { world: WorldState; selected: number; onSelect: (id: number) => void; wireframe?: boolean; resetKey?: number; onPlace?: (point: Point) => void }) {
+export default function FarmView({ world, selected, onSelect, wireframe = false, showTarget = false, resetKey = 0, onPlace }: { world: WorldState; selected: number; onSelect: (id: number) => void; wireframe?: boolean; showTarget?: boolean; resetKey?: number; onPlace?: (point: Point) => void }) {
   const host = useRef<HTMLDivElement>(null), view = useRef<SceneState | null>(null);
   const selectRef = useRef(onSelect); selectRef.current = onSelect;
   const placementRef = useRef({ active: world.population.placementMode, onPlace }); placementRef.current = { active: world.population.placementMode, onPlace };
@@ -40,7 +40,7 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     const addMesh = (g: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0) => { const mesh = new THREE.Mesh(g, m); mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; root.add(mesh); return mesh; };
     const terrain = createTerrainMesh(); root.add(terrain);
     const water = createWaterMesh(); root.add(water);
-    const crops = new THREE.Group(), people = new THREE.Group(), bakery = new THREE.Group(); root.add(crops, people, bakery);
+    const crops = new THREE.Group(), people = new THREE.Group(), bakery = new THREE.Group(), debug = new THREE.Group(); root.add(crops, people, bakery, debug);
     // Paths follow terrain, excluding plants during world generation.
     const pathMaterial = material('#9b9075');
     const path = (ax: number, az: number, bx: number, bz: number) => {
@@ -66,7 +66,7 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     addMesh(new THREE.BoxGeometry(3.6, 0.12, 0.9), wood, hx, hy + 0.3, hz + 1.9);
     for (const side of [-1, 1]) addMesh(new THREE.CylinderGeometry(0.065, 0.065, 1.9, 6), wood, hx + side * 1.65, hy + 1.25, hz + 2.2);
     const vegetation = createVegetation(landscape, root);
-    view.current = { root, terrain, water, crops, people, bakery, vegetation, camera, controls };
+    view.current = { root, terrain, water, crops, people, bakery, debug, vegetation, camera, controls };
     const resize = () => { const r = container.getBoundingClientRect(); renderer.setSize(r.width, r.height); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); };
     const observer = new ResizeObserver(resize); observer.observe(container); resize();
     const raycaster = new THREE.Raycaster(); let down = { x: 0, y: 0 };
@@ -110,6 +110,16 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
       const next = person.route[0]; if (next) actor.rotation.y = Math.atan2(next.x - person.position.x, next.z - person.position.z);
     });
   }, [world.population, landscape]);
+  // Diagnostic only: Mina's remaining route and chosen target, read from simulation state.
+  useEffect(() => {
+    const state = view.current; if (!state) return; dispose(state.debug); state.debug.clear();
+    const mina = world.population.mina, target = mina?.activity?.targetPosition;
+    if (!showTarget || !mina || !target) return;
+    const lift = (p: Point) => new THREE.Vector3(p.x, walkingHeight(p) + 0.2, p.z), color = '#e0c46c';
+    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([mina.position, ...mina.route].map(lift)), new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.85 }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.48, 24), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.85 }));
+    ring.rotation.x = -Math.PI / 2; ring.position.copy(lift(target)); line.renderOrder = ring.renderOrder = 10; state.debug.add(line, ring);
+  }, [world.population, showTarget, landscape]);
   useEffect(() => {
     const state = view.current; if (!state) return; dispose(state.bakery); state.bakery.clear();
     if (!settlement) return;

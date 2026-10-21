@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { act, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import VillageWorkspace from './VillageWorkspace';
-import { createWorld, advanceDays, actOnPlot } from './simulation';
-import { movePopulation } from './population';
+import { createWorld, advanceDay, advanceDays, actOnPlot } from './simulation';
+import { inviteMina, movePopulation, settleMina } from './population';
 jest.mock('./rendering/FarmView', () => () => <div>Farm placeholder</div>);
 afterEach(() => { cleanup(); jest.useRealTimers(); });
 test('advance 30 days exposes every daily metric and reset clears the experiment', () => {
@@ -43,4 +43,17 @@ test('population sidebar invites a real visitor and supports cancelling placemen
   expect(screen.getByRole('button', { name: 'Cancel placement' })).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Cancel placement' }));
   expect(screen.getByRole('button', { name: 'INVITE TO STAY' })).toBeTruthy();
+});
+
+test('resident Mina exposes behavior diagnostics: goal, target, needs, odds and placement walks', () => {
+  let world = advanceDays(createWorld(), 20);
+  for (let i = 0; i < 9; i++) world = actOnPlot(world, i, 'harvest');
+  world = advanceDays(world, 7);
+  for (let i = 0; i < 1000; i++) world = movePopulation(world, 0.1);
+  world = movePopulation(advanceDay(settleMina(inviteMina(world), { x: -6, z: -16 })), 0.1);
+  render(<VillageWorkspace world={world} setWorld={() => {}} />);
+  const panel = screen.getByLabelText('Mina behavior');
+  for (const text of ['Current goal', 'Target', 'Energy', 'Social need', 'Odds ·']) expect(panel.textContent).toContain(text);
+  expect(screen.getByText('Home → river (walk)')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Behavior target' })).toBeTruthy();
 });

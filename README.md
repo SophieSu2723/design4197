@@ -18,7 +18,7 @@ The current prototype connects seeded weather, soil moisture, river level, veget
 
 Mina’s arrival is driven by resource conditions and a seeded daily probability, rather than a fixed arrival day. The player can invite her to stay and choose a suitable home and bakery location; the placement records its environmental and spatial context. Su and Mina have simple movement and daily routines. Richer behavior, relationships, memory, and narrative generation are future work.
 
-The simulation rules and world state live separately from the Three.js renderer. World state is held in memory: switching experiments preserves the village during the session, while refreshing the page starts a new world. For the current system design and phase notes, see [Living Village planning](docs/planning/LIVING_VILLAGE_PLAN.md), [Phase 1](docs/planning/PHASE1_FARM.md), [ecological valley](docs/planning/ECOLOGICAL_VALLEY.md), and [Phase 2](docs/planning/PHASE2_POPULATION.md).
+The simulation rules and world state live separately from the Three.js renderer. World state is held in memory: switching experiments preserves the village during the session, while refreshing the page starts a new world. For the current system design and phase notes, see [Living Village planning](docs/planning/LIVING_VILLAGE_PLAN.md), [Phase 1](docs/planning/PHASE1_FARM.md), [ecological valley](docs/planning/ECOLOGICAL_VALLEY.md), [Phase 2](docs/planning/PHASE2_POPULATION.md), and [Phase 3](docs/planning/PHASE3_BEHAVIOR.md).
 
 ## Run locally
 

@@ -72,7 +72,8 @@ export function chooseGoal(weights: Record<Goal, number>, roll: number): Goal {
   for (const goal of goals) { if (weights[goal] > 0 && threshold < weights[goal]) return goal; threshold -= weights[goal]; }
   return 'REST';
 }
-const list = (parts: DayPart[]) => parts.length < 2 ? parts.join('') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
+const phrases: Record<DayPart, string> = { morning: 'in the morning', midday: 'at midday', afternoon: 'in the afternoon', evening: 'in the evening' };
+const when = (parts: DayPart[]) => parts.map(p => phrases[p]).join(' and ');
 const label = (a: Activity) => `${a.part[0].toUpperCase()}${a.part.slice(1)} · ${goalNames[a.goal].toLowerCase()}`;
 export function behaviorDay(world: WorldState): WorldState {
   const { mina, settlement } = world.population;
@@ -109,17 +110,17 @@ function behaviorEvents(world: WorldState, plan: Activity[]): WorldEvent[] {
   const events: WorldEvent[] = [];
   if (!plan.some(a => outdoor.includes(a.goal))) return [event(plan[0], '24:00', 'STAYED_HOME', `Mina stayed near home today${rain ? ' while it rained' : ''}.`)];
   const work = plan.filter(a => a.goal === 'WORK');
-  if (work.length) events.push(event(work[0], partTimes[work[0].part], 'WORKED', `Mina worked at the bakery in the ${list(work.map(a => a.part))}.`));
+  if (work.length) events.push(event(work[0], partTimes[work[0].part], 'WORKED', `Mina worked at the bakery ${when(work.map(a => a.part))}.`));
   plan.forEach((a, i) => {
     const previous = plan[i - 1];
     if (previous?.goal === a.goal && outdoor.includes(a.goal)) return; // an outing spanning several parts is one event
     const run: DayPart[] = []; for (let j = i; j < plan.length && plan[j].goal === a.goal; j++) run.push(plan[j].part);
     const time = partTimes[a.part];
-    if (a.goal === 'VISIT_FARM') events.push(event(a, time, 'VISITED_FARM', `Mina visited Su’s farm in the ${list(run)}.`, 'su'));
-    if (a.goal === 'VISIT_RIVER') events.push(event(a, time, 'VISITED_RIVER', `Mina spent the ${list(run)} near the river.`));
-    if (a.goal === 'WALK') events.push(event(a, time, 'WALKED', `Mina walked along the village path in the ${list(run)}.`));
-    if (a.goal === 'RETURN_HOME') events.push(event(a, time, 'RETURNED_HOME', `Mina returned home from the ${previous.target} ${rain ? 'in the rain' : `in the ${a.part}`}.`));
-    if (a.goal === 'REST' && a.part !== 'evening' && a.energy < 0.35) events.push(event(a, time, 'RESTED', `Mina rested at home in the ${a.part}, tired.`));
+    if (a.goal === 'VISIT_FARM') events.push(event(a, time, 'VISITED_FARM', `Mina visited Su’s farm ${when(run)}.`, 'su'));
+    if (a.goal === 'VISIT_RIVER') events.push(event(a, time, 'VISITED_RIVER', `Mina spent time near the river ${when(run)}.`));
+    if (a.goal === 'WALK') events.push(event(a, time, 'WALKED', `Mina walked along the village path ${when(run)}.`));
+    if (a.goal === 'RETURN_HOME') events.push(event(a, time, 'RETURNED_HOME', `Mina returned home from the ${previous.target} ${rain ? 'in the rain' : phrases[a.part]}.`));
+    if (a.goal === 'REST' && a.part !== 'evening' && a.energy < 0.35) events.push(event(a, time, 'RESTED', `Mina rested at home ${phrases[a.part]}, tired.`));
   });
   return events;
 }
