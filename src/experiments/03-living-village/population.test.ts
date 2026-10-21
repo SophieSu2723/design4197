@@ -59,13 +59,13 @@ test('invitation is explicit, placement is validated, and settlement saves spati
   expect(inviteMina(settled)).toBe(settled); expect(settleMina(settled, { x: -6, z: -14 })).toBe(settled);
   expect(inspectPlacement(invited, { x: -6, z: -14 }).context!.routeLengthToFarm).not.toBe(settled.population.settlement!.context.routeLengthToFarm);
 });
-test('settled Mina receives a minimal routine and eventually returns home', () => {
+test('settled Mina receives a daily routine and eventually returns home', () => {
   let world = advanceDay(settleMina(inviteMina(visitor()), { x: -6, z: -16 }));
-  expect(world.population.mina!.currentGoal).toBe('Morning · home');
-  expect(world.population.mina!.itinerary[0].goal).toBe('Day · bakery work');
-  expect(world.population.mina!.itinerary.slice(-1)[0].goal).toBe('Evening · return home');
-  for (let i = 0; i < 2000; i++) world = movePopulation(world, 0.1);
+  expect(world.population.mina!.itinerary[0].goal).toMatch(/^Morning · /);
+  expect(world.population.mina!.itinerary.length).toBeGreaterThanOrEqual(4);
+  expect(world.population.mina!.itinerary.slice(-1)[0].destination).toEqual(world.population.settlement!.door);
+  for (let i = 0; i < 3000; i++) world = movePopulation(world, 0.1);
   expect(world.population.mina!.position).toEqual(world.population.settlement!.door);
-  expect(world.population.mina!.currentGoal).toBe('Evening · return home');
+  expect(world.population.mina!.activity!.target).toBe('home');
   expect(world.population.mina!.itinerary).toHaveLength(0);
 });

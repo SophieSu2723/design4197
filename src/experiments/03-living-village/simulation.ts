@@ -1,4 +1,5 @@
-import { initialPopulation, populationDay, PopulationState } from './population';
+import { initialPopulation, LocationType, populationDay, PopulationState } from './population';
+import { BehaviorEventType, behaviorDay } from './behavior';
 import { CELL_WIDTH, Landscape, createLandscape, cellIndex, farmPosition } from './landscape';
 // Phase 1 rules: edit these defaults or use the parameter panel. Units are explicit.
 export interface Parameters {
@@ -25,7 +26,11 @@ export interface Weather { kind: 'Rain' | 'Cloudy' | 'Clear'; rainfallMm: number
 export interface PlotObservation { id: number; moisture: number; health: number | null; growth: number | null; expectedYield: number; status: string }
 export interface DailyRecord extends Weather { day: number; season: string; plots: PlotObservation[]; harvested: number }
 export interface EcologyCell { waterMm: number; soilMoisture: number; soilFertility: number; vegetationHealth: number; biomass: number }
-export interface WorldEvent { day: number; time: string; type: 'weather' | 'soil' | 'river' | 'crop' | 'action' | 'population'; description: string }
+export interface WorldEvent {
+  day: number; time: string; type: 'weather' | 'soil' | 'river' | 'crop' | 'action' | 'population' | 'behavior'; description: string;
+  // Behavior events only: structured raw facts for later interpretation.
+  action?: BehaviorEventType; actorId?: string; targetId?: string; location?: LocationType; context?: Record<string, string | number>;
+}
 export interface Ecology { cells: EcologyCell[]; riverStorageM3: number; riverLevel: number; runoffM3: number; dischargeM3: number }
 export interface WorldState {
   population: PopulationState;
@@ -139,7 +144,7 @@ export function advanceDay(world: WorldState, fixture?: Weather): WorldState {
     plots: plots.map(plot => ({ id: plot.id, moisture: plot.waterMm / p.soilCapacityMm,
       health: plot.crop?.health ?? null, growth: plot.crop?.growth ?? null,
       expectedYield: expectedYield(plot.crop, p), status: cropStatus(plot.crop) })) };
-  return populationDay({ ...world, day, season: season.name, weather, today, ecology, randomState, plots, history: [...world.history, record] });
+  return behaviorDay(populationDay({ ...world, day, season: season.name, weather, today, ecology, randomState, plots, history: [...world.history, record] }));
 }
 export function advanceDays(world: WorldState, count: number): WorldState {
   let next = world; for (let i = 0; i < count; i++) { const before = next.population.mina; next = advanceDay(next); if (!before && next.population.mina) break; } return next;

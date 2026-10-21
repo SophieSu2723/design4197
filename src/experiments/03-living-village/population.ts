@@ -1,15 +1,21 @@
 import type { WorldState } from './simulation';
+import type { Activity, Goal } from './behavior';
 import { cellIndex, farmPosition, housePosition, riverBed, riverX, terrainHeight } from './landscape';
 export interface Point { x: number; z: number }
-export interface SpatialContext { distanceToFarm: number; distanceToRiver: number; distanceToPath: number; distanceToFarmhouse: number; fertility: number; soilMoisture: number; elevation: number; slope: number; routeLengthToFarm: number }
+export interface SpatialContext { distanceToFarm: number; distanceToRiver: number; distanceToPath: number; distanceToFarmhouse: number; fertility: number; soilMoisture: number; elevation: number; slope: number; routeLengthToFarm: number; routeLengthToRiver: number | null; routeLengthToPath: number | null }
+// Destinations Mina's behavior can choose. Positions are simulation data, fixed at settlement.
+export type LocationType = 'home' | 'bakery' | 'farm' | 'river' | 'path';
+export interface VillageLocation { type: LocationType; position: Point }
 export interface VillagerState {
   id: 'su' | 'mina'; name: string; profession: 'farmer' | 'baker'; status: 'resident' | 'arriving' | 'visiting' | 'invited';
   position: Point; homePosition: Point | null; currentGoal: string; energy: number; arrivalDay: number;
-  spatialContext: SpatialContext | null; dwellSeconds?: number; route: Point[]; itinerary: Array<{ goal: string; destination: Point }>;
+  spatialContext: SpatialContext | null; dwellSeconds?: number; route: Point[]; itinerary: Array<{ goal: string; destination: Point; activity?: Activity }>;
+  // Phase 3 behavior (Mina only): social need 0–1, the decision being walked, and the last 7 days of day-part goals.
+  socialNeed?: number; activity?: Activity; recentGoals?: Array<{ day: number; goals: Goal[] }>;
 }
 export interface PopulationState {
   su: VillagerState; mina: VillagerState | null; randomState: number; lastArrivalCheck: number;
-  placementMode: boolean; settlement: { position: Point; door: Point; context: SpatialContext } | null;
+  placementMode: boolean; settlement: { position: Point; door: Point; context: SpatialContext; locations: VillageLocation[] } | null;
   foodReserve: number; harvests: Array<{ day: number; amount: number }>; lastProbability: number;
 }
 export const populationRules = { capacity: 2, reserveThreshold: 20, recentHarvestThreshold: 12, recentDays: 7, dailyFoodPerResident: 0.5, baseArrivalChance: 0.35, maxArrivalChance: 0.8, walkingSpeed: 2, buildingHalfSize: 1.35, maxSlope: 0.38 };
@@ -66,13 +72,6 @@ export function populationDay(world: WorldState): WorldState {
   const population = { ...old, lastArrivalCheck: world.day, foodReserve: Math.max(0, old.foodReserve - residentCount(world) * populationRules.dailyFoodPerResident), harvests: old.harvests.filter(h => world.day - h.day < populationRules.recentDays), lastProbability: 0 };
   let result = { ...world, population };
   population.su = withRoute(population.su, farmGate, 'Operate the farm', population.settlement?.position ?? null);
-  if (population.mina?.status === 'resident' && population.settlement) {
-    const building = population.settlement.position, door = population.settlement.door;
-    // Independent seed/day hash: the routine never consumes weather or arrival randomness.
-    const visit = ((Math.imul(world.day + 1, 1103515245) ^ world.parameters.seed) >>> 0) / 4294967296 < 0.45;
-    const itinerary = [{ goal: 'Day · bakery work', destination: { x: door.x + 1, z: door.z } }, ...(visit ? [{ goal: 'Afternoon · visit Su’s farm', destination: farmGate }] : []), { goal: 'Evening · return home', destination: door }];
-    population.mina = { ...withRoute(population.mina, door, 'Morning · home', building), itinerary, energy: 1 };
-  }
   if (!arrivalEligibility(result)) return result;
   population.lastProbability = Math.min(populationRules.maxArrivalChance, populationRules.baseArrivalChance + (population.foodReserve - populationRules.reserveThreshold) * 0.005);
   population.randomState = (Math.imul(population.randomState, 1664525) + 1013904223) >>> 0;
@@ -89,7 +88,7 @@ export function movePopulation(world: WorldState, seconds: number): WorldState {
       if ((person.dwellSeconds ?? 0) > 0) return { ...person, dwellSeconds: Math.max(0, person.dwellSeconds! - seconds) };
       if (!person.itinerary.length) return person;
       const [next, ...rest] = person.itinerary;
-      return { ...withRoute(person, next.destination, next.goal, building), itinerary: rest };
+      return { ...withRoute(person, next.destination, next.goal, building), itinerary: rest, ...(next.activity ? { activity: next.activity } : {}) };
     }
     let budget = Math.max(0, Math.min(seconds, 1)) * populationRules.walkingSpeed, position = { ...person.position }, route = [...person.route];
     while (budget > 0 && route.length) {
@@ -112,7 +111,17 @@ export function cancelInvitation(world: WorldState): WorldState {
   if (!world.population.placementMode || !world.population.mina) return world;
   return { ...world, population: { ...world.population, placementMode: false, mina: { ...world.population.mina, status: 'visiting', currentGoal: 'Visiting Su’s farmhouse' } } };
 }
-export function inspectPlacement(world: WorldState, p: Point): { error: string; context?: SpatialContext; door?: Point } {
+const routeLength = (start: Point, route: Point[]) => route.reduce((sum, q, i) => sum + distance(i ? route[i - 1] : start, q), 0);
+const riverBank = Array.from({ length: 39 }, (_, i) => i - 19).flatMap(z => [-1, 1].flatMap(side => [2.5, 3, 3.5, 4, 4.5].map(offset => ({ x: riverX(z) + side * offset, z }))));
+const pathPoints = [...Array.from({ length: 59 }, (_, i) => ({ x: -10 + i * 0.5, z: 9.5 })), ...Array.from({ length: 17 }, (_, i) => ({ x: -5, z: 1.5 + i * 0.5 }))];
+// Nearest walkable candidate (straight-line order) that the entrance can actually walk to.
+function access(door: Point, building: Point, candidates: Point[]) {
+  for (const point of candidates.filter(q => walkable(q, building)).sort((a, b) => distance(door, a) - distance(door, b)).slice(0, 5)) {
+    const route = routeBetween(door, point, building); if (route.length) return { point, length: routeLength(door, route) };
+  }
+  return null;
+}
+export function inspectPlacement(world: WorldState, p: Point): { error: string; context?: SpatialContext; door?: Point; locations?: VillageLocation[] } {
   if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || Math.abs(p.x) > 17 || Math.abs(p.z) > 17) return { error: 'Keep the whole bakery inside the valley.' };
   for (const dx of [-1.7, 0, 1.7]) for (const dz of [-1.7, 0, 1.7]) {
     const q = { x: p.x + dx, z: p.z + dz };
@@ -124,13 +133,14 @@ export function inspectPlacement(world: WorldState, p: Point): { error: string; 
   const route = routeBetween(door, farmGate, p), visitorRoute = routeBetween(world.population.mina?.position ?? suDoor, door, p);
   if (!route.length || !visitorRoute.length) return { error: 'The bakery entrance needs a walkable route to the farm and visitor.' };
   const local = world.ecology.cells[cellIndex(p.x, p.z)];
-  let routeLengthToFarm = 0, last = door; route.forEach(q => { routeLengthToFarm += distance(last, q); last = q; });
-  return { error: '', door, context: { distanceToFarm: distance(p, farmPosition(4)), distanceToRiver: Math.abs(p.x - riverX(p.z)), distanceToPath: pathDistance(p), distanceToFarmhouse: distance(p, housePosition), fertility: local.soilFertility, soilMoisture: local.soilMoisture, elevation: terrainHeight(p.x, p.z), slope: slope(p), routeLengthToFarm } };
+  const river = access(door, p, riverBank), path = access(door, p, pathPoints);
+  const locations: VillageLocation[] = [{ type: 'home', position: door }, { type: 'bakery', position: { x: door.x + 1, z: door.z } }, { type: 'farm', position: { ...farmGate } }, ...(river ? [{ type: 'river' as const, position: river.point }] : []), ...(path ? [{ type: 'path' as const, position: path.point }] : [])];
+  return { error: '', door, locations, context: { distanceToFarm: distance(p, farmPosition(4)), distanceToRiver: Math.abs(p.x - riverX(p.z)), distanceToPath: pathDistance(p), distanceToFarmhouse: distance(p, housePosition), fertility: local.soilFertility, soilMoisture: local.soilMoisture, elevation: terrainHeight(p.x, p.z), slope: slope(p), routeLengthToFarm: routeLength(door, route), routeLengthToRiver: river?.length ?? null, routeLengthToPath: path?.length ?? null } };
 }
 export function settleMina(world: WorldState, p: Point): WorldState {
   const mina = world.population.mina;
   if (!world.population.placementMode || mina?.status !== 'invited' || residentCount(world) >= populationRules.capacity) return world;
-  const checked = inspectPlacement(world, p); if (checked.error || !checked.context || !checked.door) return world;
-  const resident = { ...withRoute(mina, checked.door, 'Move into home / bakery', p), status: 'resident' as const, homePosition: { ...p }, spatialContext: checked.context };
-  return { ...world, population: { ...world.population, mina: resident, placementMode: false, settlement: { position: { ...p }, door: checked.door, context: checked.context } }, today: [...world.today, { day: world.day, time: '24:00', type: 'population', description: 'Mina settled in the village as a baker.' }] };
+  const checked = inspectPlacement(world, p); if (checked.error || !checked.context || !checked.door || !checked.locations) return world;
+  const resident = { ...withRoute(mina, checked.door, 'Move into home / bakery', p), status: 'resident' as const, homePosition: { ...p }, spatialContext: checked.context, socialNeed: 0.3, recentGoals: [] };
+  return { ...world, population: { ...world.population, mina: resident, placementMode: false, settlement: { position: { ...p }, door: checked.door, context: checked.context, locations: checked.locations } }, today: [...world.today, { day: world.day, time: '24:00', type: 'population', description: 'Mina settled in the village as a baker.' }] };
 }
