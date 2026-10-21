@@ -1,61 +1,41 @@
-# Assignment 1 — Noise Studio
+# FIELD / LAB
 
-An interactive React, TypeScript, and Three.js assignment exploring procedural noise and terrain.
+FIELD / LAB is a procedural world-building project made with React, TypeScript, and Three.js. Its experiments explore how terrain and a small living environment can emerge from rules.
+
+## Experiments
+
+### 01 / Noise Field — A world from noise
+
+Builds a height field from layered value, ridged, or domain-warped noise. Adjust layer parameters and shaping, compare the 3D terrain with its 2D map, and run a thermal erosion simulation. The map and terrain share the evolving samples. The sampler limits frequency and octave detail relative to grid resolution; the 3D view keeps horizontal and vertical scale consistent.
+
+### 02 / Voxel Terrain — A surface from a solid
+
+Explores 3D density fields using procedural terrain and cave fields, sphere, box, torus, and capsule shapes. An ordered CSG stack supports union, subtraction, and intersection. Compare marching-cubes surfaces with exposed-face block meshing, inspect chunks and wireframes, and read build statistics. See [Voxel Terrain notes](docs/VOXEL_NOTES.md) for equations, tradeoffs, measurements, and limitations.
+
+### 03 / Living Village — A world that grows and remembers
+
+The current prototype connects seeded weather, soil moisture, river level, vegetation health, crops, harvest, and food reserves. Advance one day at a time or run a 30-day simulation, tend Su’s farm, and export daily plot observations as CSV.
+
+Mina’s arrival is driven by resource conditions and a seeded daily probability, rather than a fixed arrival day. The player can invite her to stay and choose a suitable home and bakery location; the placement records its environmental and spatial context. Su and Mina have simple movement and daily routines. Richer behavior, relationships, memory, and narrative generation are future work.
+
+The simulation rules and world state live separately from the Three.js renderer. World state is held in memory: switching experiments preserves the village during the session, while refreshing the page starts a new world. For the current system design and phase notes, see [Living Village planning](docs/planning/LIVING_VILLAGE_PLAN.md), [Phase 1](docs/planning/PHASE1_FARM.md), [ecological valley](docs/planning/ECOLOGICAL_VALLEY.md), and [Phase 2](docs/planning/PHASE2_POPULATION.md).
 
 ## Run locally
 
+From the repository root:
+
 ```bash
-cd "design folder/Assignment1"
 npm install
 npm start
 ```
 
-Open http://localhost:3000. Keep the terminal running. No Firebase account or environment variables are required.
-
-## Features
-
-- A 3D grid with adjustable resolution and height.
-- A synchronized 2D grayscale noise map using the same samples as the grid.
-- Value fBm, ridged, and domain-warped noise equations.
-- Up to four layers with frequency, octaves, persistence, lacunarity, seed, and blend weight controls.
-- Power, terrace, and island shaping with adjustable strength.
-- A thermal erosion simulation map with start, stop/resume, reset, rate, and stable-slope controls.
-- Shared elevation colors for the simulation map and 3D material.
-- Continuous world navigation with WASD, arrow keys, and on-screen controls.
-- World span, cell spacing, automatic noise-detail limits, and a rolling-hills calibration preset.
-- Orbit, zoom, pan, wireframe, and reset controls.
-
-Enabled layers blend by relative weight. Shaping is applied after blending, then the result is multiplied by the height scale. An empty or zero-weight stack produces a flat surface. The top of the 2D map corresponds to negative Z in the 3D grid.
-
-The grid contains `(resolution + 1)²` vertices and `2 × resolution²` triangles.
-
-## Simulation and navigation
-
-Click **Start simulation** to evolve the noise-driven height field. Thermal erosion moves material from slopes above the chosen stable angle into lower neighbors. **Stop simulation** freezes the result; starting again resumes it. **Reset terrain** restores the original noise field. This is a simplified thermal relaxation model, not a hydraulic water simulation. Material stays inside the map boundaries.
-
-Both 2D maps and the 3D grid share the same evolving samples. The colored map and material use a fixed elevation palette; colors suggest lowlands, vegetation, rock, and snow rather than simulating those ecosystems.
-
-| Control | Action |
-| --- | --- |
-| WASD / arrow keys | Move across the continuous noise field |
-| F | Toggle wireframe |
-| Space | Start or stop erosion |
-| Home button | Return to world origin |
-| Mouse drag / scroll / right-drag | Orbit / zoom / pan |
-
-Shortcuts do not intercept input while a form control or button has focus. On-screen buttons support touch navigation. Moving the map or editing terrain settings stops and resets erosion; returning to a location regenerates its original terrain. Simulated changes are not stored across locations. Island shaping is anchored at world coordinates (6, 6).
-
-**Calibration:** world span determines the sampled area, and cell width is `world span / resolution`. The 3D viewport scales horizontal extent and elevation together, preserving the world slope. The noise sampler limits frequency and octaves to maintain at least four cells per nominal noise feature; nonlinear ridge/warp/shaping operations can still introduce finer detail. Increase resolution to retain more detail. The **Calibrate rolling hills** preset provides a moderate relief and detail starting point.
+Open http://localhost:3000 and use the top navigation to switch experiments. Keep the terminal running while using the app. No account or environment variables are required.
 
 ## Checks
-
-Run these commands from the app directory:
 
 ```bash
 npm run build
 CI=true npm test -- --watchAll=false --runInBand
 ```
 
-## Credits
-
-Adapted from [Procedural World Building](https://github.com/jomasan/Procedural-World-Building). The noise utility is based on that project's value-noise implementation. This version contains only the Assignment 1 noise studio.
+The tests cover noise sampling and erosion, voxel density and meshing, and Living Village simulation, population, and workspace interactions.
