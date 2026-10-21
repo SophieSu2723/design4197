@@ -1,8 +1,8 @@
-import Slider from './LabSlider';
+import Slider from '../../components/LabSlider';
 import { useEffect, useRef, useState } from 'react';
-import { ChunkMesh, CsgMode, CsgOperation, DensityShape, VoxelSettings, chunkSignature, initialVoxel, listChunks, meshChunk } from '../utils/voxel';
+import { ChunkMesh, CsgMode, CsgOperation, DensityShape, VoxelSettings, chunkSignature, initialVoxel, listChunks, meshChunk } from './voxel';
 import VoxelView from './VoxelView';
-import './NoiseWorkspace.css';
+import '../../components/NoiseWorkspace.css';
 import './VoxelWorkspace.css';
 
 const shapeOptions = <><option value="sphere">Sphere</option><option value="box">Box</option><option value="torus">Torus</option><option value="capsule">Capsule</option></>;

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { createWorld } from './village/simulation';
 import VillageWorkspace from './village/VillageWorkspace';
-import NoiseWorkspace from './components/NoiseWorkspace';
-import VoxelWorkspace from './components/VoxelWorkspace';
+import NoiseWorkspace from './experiments/01-noise-field/NoiseWorkspace';
+import VoxelWorkspace from './experiments/02-voxel-terrain/VoxelWorkspace';
 import './components/WorkspaceTabs.css';
 
 export default function App() {

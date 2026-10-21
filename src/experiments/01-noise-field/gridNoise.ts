@@ -1,4 +1,4 @@
-import { sampleNoise } from './noise';
+import { sampleNoise } from '../../utils/noise';
 
 export type Equation = 'value' | 'ridged' | 'warp';
 export type Shape = 'none' | 'power' | 'terrace' | 'island';

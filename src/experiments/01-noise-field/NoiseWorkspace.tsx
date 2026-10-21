@@ -1,10 +1,10 @@
-import Slider from './LabSlider';
+import Slider from '../../components/LabSlider';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { buildHeightField, Equation, GridSettings, initialGrid, NoiseLayer, sampledFrequency, sampledOctaves, Shape } from '../utils/gridNoise';
-import { erodeStep, terrainColor } from '../utils/simulation';
-import './NoiseWorkspace.css';
+import { buildHeightField, Equation, GridSettings, initialGrid, NoiseLayer, sampledFrequency, sampledOctaves, Shape } from './gridNoise';
+import { erodeStep, terrainColor } from './simulation';
+import '../../components/NoiseWorkspace.css';
 
 function HeightMap({ field, resolution, colored = false }: { field: Float32Array; resolution: number; colored?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);

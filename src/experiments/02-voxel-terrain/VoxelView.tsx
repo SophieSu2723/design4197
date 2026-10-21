@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { ChunkMesh } from '../utils/voxel';
+import { ChunkMesh } from './voxel';
 
 interface ViewState {
   scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: OrbitControls;

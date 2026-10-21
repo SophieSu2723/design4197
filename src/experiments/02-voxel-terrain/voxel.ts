@@ -1,4 +1,4 @@
-import { sampleNoise } from './noise';
+import { sampleNoise } from '../../utils/noise';
 import { triTable } from './marchingTables';
 
 export type Vec3 = [number, number, number];
