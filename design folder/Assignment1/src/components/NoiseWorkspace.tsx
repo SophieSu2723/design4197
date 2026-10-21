@@ -1,3 +1,4 @@
+import Slider from './LabSlider';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
@@ -5,12 +6,6 @@ import { buildHeightField, Equation, GridSettings, initialGrid, NoiseLayer, samp
 import { erodeStep, terrainColor } from '../utils/simulation';
 import './NoiseWorkspace.css';
 
-function Slider({ label, value, min, max, step = 1, onChange }: {
-  label: string; value: number; min: number; max: number; step?: number; onChange: (n: number) => void;
-}) {
-  return <label className="noise-slider"><span>{label}<output>{Number(value.toFixed(2))}</output></span>
-    <input type="range" aria-label={label} min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} /></label>;
-}
 function HeightMap({ field, resolution, colored = false }: { field: Float32Array; resolution: number; colored?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {

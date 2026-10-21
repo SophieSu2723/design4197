@@ -1,5 +1,7 @@
 # Phase 1: Weather → Soil → Crop → Harvest
 
+Historical notes for the initial placeholder prototype. The current renderer and ecology are described in [ECOLOGICAL_VALLEY.md](ECOLOGICAL_VALLEY.md).
+
 Implemented as **03 / Living Village**, the default workspace. Noise and voxel tabs remain available. The existing React toolchain is retained; no Vite migration is needed to try this prototype.
 
 ## Run an experiment

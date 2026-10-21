@@ -1,15 +1,10 @@
+import Slider from './LabSlider';
 import { useEffect, useRef, useState } from 'react';
 import { ChunkMesh, CsgMode, CsgOperation, DensityShape, VoxelSettings, chunkSignature, initialVoxel, listChunks, meshChunk } from '../utils/voxel';
 import VoxelView from './VoxelView';
 import './NoiseWorkspace.css';
 import './VoxelWorkspace.css';
 
-function Slider({ label, value, min, max, step = 1, onChange }: {
-  label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void;
-}) {
-  return <label className="noise-slider"><span>{label}<output>{Number(value.toFixed(2))}</output></span>
-    <input type="range" aria-label={label} min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} /></label>;
-}
 const shapeOptions = <><option value="sphere">Sphere</option><option value="box">Box</option><option value="torus">Torus</option><option value="capsule">Capsule</option></>;
 const bytes = (n: number) => n < 1048576 ? `${(n / 1024).toFixed(1)} KiB` : `${(n / 1048576).toFixed(2)} MiB`;
 interface BuildResult { meshes: ChunkMesh[]; rebuilt: number; reused: number; milliseconds: number; resolution: number }

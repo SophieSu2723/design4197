@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import FarmView from './FarmView';
-import { actOnPlot, advanceDay, advanceDays, calendar, createWorld, cropStatus, defaultParameters, expectedYield, Parameters, validateParameters } from './simulation';
+import { actOnPlot, advanceDay, advanceDays, createWorld, cropStatus, defaultParameters, expectedYield, Parameters, validateParameters } from './simulation';
+import '../components/NoiseWorkspace.css';
+import Slider from '../components/LabSlider';
 import './village.css';
 
 const fields: Array<[keyof Parameters, string, number, number, number]> = [
@@ -17,6 +19,9 @@ export default function VillageWorkspace() {
   const [draft, setDraft] = useState<Parameters>({ ...defaultParameters });
   const [selected, setSelected] = useState(4);
   const [remaining, setRemaining] = useState(0);
+  const [wireframe, setWireframe] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
+  const [recordsOpen, setRecordsOpen] = useState(false);
   const [error, setError] = useState('');
   const running = remaining > 0;
   useEffect(() => {
@@ -36,27 +41,40 @@ export default function VillageWorkspace() {
     const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
     const link = document.createElement('a'); link.href = url; link.download = 'living-village-daily.csv'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  return <main className="village-workspace">
-    <aside className="village-panel"><h1>Su’s Living Village</h1><p>Phase 1 · Weather → Soil → Crop → Harvest</p>
-      <h2>Daily simulation</h2><div className="farm-actions">
-        <button disabled={running} onClick={() => setWorld(w => advanceDay(w))}>Advance 1 day</button>
-        <button disabled={running} onClick={() => setWorld(w => advanceDays(w, 30))}>Advance 30 days</button>
-        <button onClick={() => setRemaining(running ? 0 : 30)}>{running ? 'Pause playback' : 'Play 30 days'}</button>
-        <button onClick={() => reset(world.parameters)}>Reset simulation</button>
-      </div><p role="status" aria-label="Farm simulation status">{running ? `Running · ${remaining} days remaining` : 'Paused'} · Day {world.day}</p>
-      <h2>Selected plot</h2><label>Plot <select value={selected} onChange={e => setSelected(Number(e.target.value))}>{world.plots.map(p => <option key={p.id} value={p.id}>Plot {p.id + 1}</option>)}</select></label>
-      <dl><dt>Soil moisture</dt><dd>{percent(plot.waterMm / world.parameters.soilCapacityMm)} ({plot.waterMm.toFixed(1)} mm)</dd><dt>Health / growth</dt><dd>{percent(crop?.health ?? null)} / {percent(crop?.growth ?? null)}</dd><dt>Crop status</dt><dd>{cropStatus(crop)}</dd><dt>Expected yield</dt><dd>{expectedYield(crop, world.parameters)} strawberries</dd><dt>Harvested total</dt><dd>{world.harvested}</dd></dl>
-      <p>Expected yield is an estimate at maturity using current health and accumulated stress. Future weather can change it. Harvest only when Ready.</p>
-      <div className="farm-actions">{(['water', 'plant', 'harvest', 'clear'] as const).map(action => <button key={action} disabled={running || (action === 'plant' && !!crop) || (action === 'harvest' && cropStatus(crop) !== 'Ready') || (action === 'clear' && cropStatus(crop) !== 'Dead')} onClick={() => setWorld(w => actOnPlot(w, selected, action))}>{action === 'water' ? 'Water +10 mm' : action === 'clear' ? 'Clear dead crop' : action === 'plant' ? 'Plant strawberries' : 'Harvest'}</button>)}</div>
-      <h2>Editable parameters</h2><p>Apply starts a new seeded experiment. Nine plots begin planted; drainage varies slightly by column. Seasons last 28 days.</p>
-      <form onSubmit={e => { e.preventDefault(); reset(draft); }}>{fields.map(([key, label, min, max, step]) => <label key={key}>{label}<input type="number" required min={min} max={max} step={step} value={Number.isNaN(draft[key]) ? '' : draft[key]} onChange={e => setDraft(d => ({ ...d, [key]: e.target.value === '' ? NaN : Number(e.target.value) }))} /></label>)}
-      {error && <p role="alert">{error}</p>}<button type="submit">Apply parameters & reset</button><button type="button" onClick={() => { setDraft({ ...defaultParameters }); reset(defaultParameters); }}>Restore defaults</button></form>
-      <p>Model rules: src/village/simulation.ts. Simple educational rules, not calibrated crop science. Switching workspace resets this prototype.</p>
+  const average = (key: 'soilMoisture' | 'vegetationHealth' | 'soilFertility') => world.ecology.cells.reduce((sum, cell) => sum + cell[key], 0) / world.ecology.cells.length;
+  const farmHealth = world.plots.reduce((sum, p) => sum + (p.crop?.health ?? 0), 0) / Math.max(1, world.plots.filter(p => p.crop).length);
+  const harvest = world.plots.reduce((sum, p) => sum + expectedYield(p.crop, world.parameters), 0);
+  const controls = (keys: Array<keyof Parameters>) => fields.filter(([key]) => keys.includes(key)).map(([key, label, min, max, step]) => key === 'seed' ? <label key={key} className="noise-select">{label}<input aria-label={label} type="number" min={min} max={max} value={draft.seed} onChange={e => setDraft(d => ({ ...d, seed: Number(e.target.value) }))} /></label> : <Slider key={key} label={label} value={draft[key]} min={min} max={max} step={step} onChange={value => setDraft(d => ({ ...d, [key]: value }))} />);
+  return <div className="noise-app village-app"><div className="noise-layout">
+    <aside className="noise-controls" aria-label="Living village controls">
+      <div className="noise-intro"><span className="noise-eyebrow">■ FIELD / LAB</span><h1>Living village<span>03</span></h1><p>CLIMATE → ECOLOGY → GROWTH</p></div>
+      <section><h2><span>01</span> Time & climate</h2><p className="noise-hint">A day advances four six-hour intervals. Same seed and actions, same experiment.</p>
+        <div className="village-actions"><button disabled={running} onClick={() => setWorld(w => advanceDay(w))}>Advance 1 day</button><button disabled={running} onClick={() => { setWorld(w => advanceDays(w, 30)); setRecordsOpen(true); }}>Advance 30 days</button><button className="simulation-start" onClick={() => setRemaining(running ? 0 : 30)}>{running ? 'Pause playback' : 'Play 30 days'}</button><button onClick={() => reset(world.parameters)}>Reset simulation</button></div>
+        <p className="noise-hint" role="status" aria-label="Farm simulation status">{running ? `Running · ${remaining} days remaining` : 'Paused'} · Day {world.day}</p>
+        {controls(['seed', 'rainChance', 'rainMaxMm', 'temperatureC'])}
+      </section>
+      <section><h2><span>02</span> Ecology</h2><p className="noise-hint">Slope and distance to the stream shape drainage, fertility, and plant suitability. Rain changes soil, river storage, and vegetation.</p>{controls(['soilCapacityMm', 'evaporationMm', 'drainageRate', 'fertility'])}
+        <div className="village-mini-metrics"><span>Vegetation sites <b>{world.landscape.sites.filter(s => s.kind !== 'rock').length}</b></span><span>Soil fertility <b>{percent(average('soilFertility'))}</b></span></div>
+      </section>
+      <section><h2><span>03</span> Farm</h2><label className="noise-select">Plot<select value={selected} onChange={e => setSelected(Number(e.target.value))}>{world.plots.map(p => <option key={p.id} value={p.id}>Plot {p.id + 1}</option>)}</select></label>
+        <p className="noise-hint">{cropStatus(crop)} · growth {percent(crop?.growth ?? null)} · health {percent(crop?.health ?? null)}<br />Moisture {percent(plot.waterMm / world.parameters.soilCapacityMm)} · expected yield {expectedYield(crop, world.parameters)}<br />Harvested total: {world.harvested}</p>
+        <div className="village-actions">{(['water', 'plant', 'harvest', 'clear'] as const).map(action => <button key={action} disabled={running || (action === 'plant' && !!crop) || (action === 'harvest' && cropStatus(crop) !== 'Ready') || (action === 'clear' && cropStatus(crop) !== 'Dead')} onClick={() => setWorld(w => actOnPlot(w, selected, action))}>{action === 'water' ? 'Water +10 mm' : action === 'clear' ? 'Clear dead crop' : action === 'plant' ? 'Plant strawberries' : 'Harvest'}</button>)}</div>
+        {controls(['uptakeMm', 'idealGrowingDays', 'baseYield', 'stressDamage', 'recovery'])}
+        <p className="noise-hint">Expected harvest reflects current health and stress history; future conditions can change it. Harvest mature crops manually.</p>
+      </section>
+      <section><h2><span>04</span> Population <span className="noise-count">0</span></h2><button disabled className="noise-add">Residents · not enabled</button><p className="noise-hint">This experiment models ecology and farming only.</p></section>
+      {error && <p role="alert">{error}</p>}<button className="noise-add" onClick={() => reset(draft)}>Apply parameters & reset</button><button className="noise-reset" onClick={() => { setDraft({ ...defaultParameters }); reset(defaultParameters); }}>Restore defaults</button><p className="noise-hint">Parameter edits apply on reset. Export observations before leaving this workspace; state is currently held in memory.</p>
     </aside>
-    <section className="farm-main"><header><h2>Day {world.day} · {world.day ? calendar(world.day).name : 'Before first day'}</h2><p>{latest ? `${latest.kind} · ${latest.rainfallMm.toFixed(1)} mm rainfall · ${latest.temperatureC.toFixed(1)} °C` : 'Advance a day to generate weather.'}</p></header>
-      <FarmView world={world} selected={selected} onSelect={setSelected} /><p className="farm-caption">Click a bed to select · Drag to orbit · Dark soil = wetter · Block height = growth · Red = mature · Brown = dead</p>
-      <section className="farm-records"><div className="farm-record-heading"><h2>Daily observations · Plot {selected + 1}</h2><button disabled={!world.history.length} onClick={exportCsv}>Export all plots CSV</button></div><p>End-of-day snapshots. Manual watering and harvesting appear in the next daily record. Harvests are never automatic.</p>
-      <div className="farm-table-scroll"><table><thead><tr>{['Day', 'Season', 'Weather', 'Rain mm', 'Temp °C', 'Moisture', 'Health', 'Growth', 'Expected yield', 'Status', 'Harvest total'].map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{world.history.map(day => { const p = day.plots[selected]; return <tr key={day.day}><td>{day.day}</td><td>{day.season}</td><td>{day.kind}</td><td>{day.rainfallMm.toFixed(1)}</td><td>{day.temperatureC.toFixed(1)}</td><td>{percent(p.moisture)}</td><td>{percent(p.health)}</td><td>{percent(p.growth)}</td><td>{p.expectedYield}</td><td>{p.status}</td><td>{day.harvested}</td></tr>; })}</tbody></table>{!world.history.length && <p>No days simulated yet. Use Advance 30 days to create a complete observation table.</p>}</div></section>
-    </section>
-  </main>;
+    <main className="noise-main" aria-label="Living valley viewport"><div className="noise-main-title"><span className="noise-eyebrow">LIVING SYSTEM / PERSPECTIVE</span><h2>Su’s living valley.</h2><p>Weather shapes what grows here.</p></div>
+      <div className="noise-scene"><div className="noise-scene-toolbar"><div><button aria-pressed={wireframe} className={wireframe ? 'selected' : ''} onClick={() => setWireframe(v => !v)}>Wireframe</button><button onClick={() => setResetKey(k => k + 1)}>Reset view</button><button aria-expanded={recordsOpen} onClick={() => setRecordsOpen(v => !v)}>Daily records</button></div></div>
+        <FarmView world={world} selected={selected} onSelect={setSelected} wireframe={wireframe} resetKey={resetKey} />
+        <div className="noise-scene-footer"><span>Drag to orbit · Scroll to zoom · Right-drag to pan · Click a farm plot</span><span>40 × 40 m · 6-hour steps</span></div>
+      </div>
+      <details className="noise-map-dock village-diagnostics" open><summary>WORLD STATE <span>− / +</span></summary><div className="noise-map-content">
+        <dl>{[['Season / Day', `${world.season} / ${world.day}`], ['Weather', latest?.kind ?? 'Awaiting first day'], ['Temperature', latest ? `${latest.temperatureC.toFixed(1)} °C` : '—'], ['Rainfall today', latest ? `${latest.rainfallMm.toFixed(1)} mm` : '—'], ['Soil moisture', percent(average('soilMoisture'))], ['River level', `${world.ecology.riverLevel.toFixed(2)} m above bed`], ['Vegetation health', percent(average('vegetationHealth'))], ['Farm health', percent(farmHealth)], ['Expected harvest', `${harvest} strawberries`]].map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}</dl>
+        <div className="village-today"><h3>TODAY</h3>{world.today.length ? world.today.map((event, i) => <p key={i}><time>{event.time}</time><span>{event.description}</span></p>) : <p>Advance a day to observe environmental changes.</p>}<small>Interval-end observations · 24:00 = end of day</small></div>
+      </div></details>
+      {recordsOpen && <section className="village-records" aria-label="Daily observations"><div className="village-record-heading"><h2>Daily observations · Plot {selected + 1}</h2><button disabled={!world.history.length} onClick={exportCsv}>Export all plots CSV</button><button onClick={() => setRecordsOpen(false)}>Close</button></div><p className="noise-hint">End-of-day snapshots. Actions between days appear in the next record.</p><div className="village-table-scroll"><table><thead><tr>{['Day', 'Season', 'Weather', 'Rain mm', 'Temp °C', 'Moisture', 'Health', 'Growth', 'Expected yield', 'Status', 'Harvest total'].map(h => <th key={h}>{h}</th>)}</tr></thead><tbody>{world.history.map(day => { const p = day.plots[selected]; return <tr key={day.day}><td>{day.day}</td><td>{day.season}</td><td>{day.kind}</td><td>{day.rainfallMm.toFixed(1)}</td><td>{day.temperatureC.toFixed(1)}</td><td>{percent(p.moisture)}</td><td>{percent(p.health)}</td><td>{percent(p.growth)}</td><td>{p.expectedYield}</td><td>{p.status}</td><td>{day.harvested}</td></tr>; })}</tbody></table>{!world.history.length && <p className="noise-hint">No days simulated yet.</p>}</div></section>}
+    </main>
+  </div></div>;
 }

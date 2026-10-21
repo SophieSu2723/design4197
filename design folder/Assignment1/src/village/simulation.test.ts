@@ -46,3 +46,36 @@ test('watering clamps to capacity and historical snapshots do not change after a
   expect(JSON.stringify(watered.history)).toBe(before);
   expect(validateParameters({ ...defaultParameters, rainChance: NaN })).not.toBeNull();
 });
+
+test('river conserves storage plus runoff minus discharge and ecology remains bounded for 30 days', () => {
+  let world = createWorld();
+  for (let day = 0; day < 30; day++) {
+    const next = advanceDay(world);
+    expect(next.ecology.riverStorageM3).toBeCloseTo(world.ecology.riverStorageM3 + next.ecology.runoffM3 - next.ecology.dischargeM3, 8);
+    expect(next.ecology.riverLevel).toBe(next.ecology.riverStorageM3 / 100);
+    next.ecology.cells.forEach(cell => {
+      expect(cell.waterMm).toBeGreaterThanOrEqual(0); expect(cell.waterMm).toBeLessThanOrEqual(next.parameters.soilCapacityMm);
+      for (const v of [cell.soilMoisture, cell.soilFertility, cell.vegetationHealth, cell.biomass]) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1); }
+    });
+    expect(next.landscape).toBe(world.landscape);
+    expect(next.today.every(event => event.day === next.day)).toBe(true);
+    world = next;
+  }
+});
+test('rain and drought change actual soil, river and vegetation state', () => {
+  let wet = createWorld(), dry = createWorld();
+  for (let i = 0; i < 12; i++) {
+    wet = advanceDay(wet, { kind: 'Rain', rainfallMm: 5, temperatureC: 19 });
+    dry = advanceDay(dry, { kind: 'Clear', rainfallMm: 0, temperatureC: 30 });
+  }
+  const mean = (w: typeof wet, key: 'soilMoisture' | 'vegetationHealth') => w.ecology.cells.reduce((a, c) => a + c[key], 0) / w.ecology.cells.length;
+  expect(mean(wet, 'soilMoisture')).toBeGreaterThan(mean(dry, 'soilMoisture'));
+  expect(mean(wet, 'vegetationHealth')).toBeGreaterThan(mean(dry, 'vegetationHealth'));
+  expect(wet.ecology.riverLevel).toBeGreaterThan(dry.ecology.riverLevel);
+});
+test('extreme rain exits through downstream overflow instead of unbounded river rise', () => {
+  let world = createWorld();
+  for (let i = 0; i < 30; i++) world = advanceDay(world, { kind: 'Rain', rainfallMm: 100, temperatureC: 19 });
+  expect(world.ecology.riverLevel).toBeLessThanOrEqual(1.4);
+  expect(world.ecology.dischargeM3).toBeGreaterThan(0);
+});
