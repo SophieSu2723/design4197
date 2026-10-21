@@ -20,7 +20,7 @@ export function cellIndex(x: number, z: number) {
   return clamp((z + 20) / CELL_WIDTH) * CELL_COUNT + clamp((x + 20) / CELL_WIDTH);
 }
 export function excluded(x: number, z: number) {
-  return (x > -12 && x < -3.5 && z > -6 && z < 3) || (Math.abs(x + 9) < 3.4 && Math.abs(z - 7) < 3.2) || (Math.abs(x + 5) < 0.65 && z > 1 && z < 10) || (Math.abs(z - 9.5) < 0.65 && x > -10 && x < riverX(z));
+  return (x > -12 && x < -3.5 && z > -6 && z < 3) || (Math.abs(x + 9) < 3.4 && Math.abs(z - 7) < 3.2) || (Math.abs(x + 5) < 0.65 && z > 1 && z < 10) || (Math.abs(z - 9.5) < 0.65 && x > -10 && x < 19.5);
 }
 export interface TerrainCell { x: number; z: number; elevation: number; slope: number; waterDistance: number; drainage: number; fertility: number }
 export interface VegetationSite { x: number; z: number; cell: number; kind: 'grass' | 'flower' | 'shrub' | 'tree' | 'rock'; scale: number; rotation: number }

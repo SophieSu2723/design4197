@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { act, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import VillageWorkspace from './VillageWorkspace';
+import { createWorld, advanceDays, actOnPlot } from './simulation';
+import { movePopulation } from './population';
 jest.mock('./FarmView', () => () => <div>Farm placeholder</div>);
 afterEach(() => { cleanup(); jest.useRealTimers(); });
 test('advance 30 days exposes every daily metric and reset clears the experiment', () => {
@@ -25,4 +28,19 @@ test('playback advances once per interval, pauses, and stops after 30 days', () 
   expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Paused · Day 30');
   act(() => { jest.advanceTimersByTime(1000); });
   expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 30');
+});
+
+test('population sidebar invites a real visitor and supports cancelling placement', () => {
+  let world = advanceDays(createWorld(), 20);
+  for (let i = 0; i < 9; i++) world = actOnPlot(world, i, 'harvest');
+  world = advanceDays(world, 7);
+  for (let i = 0; i < 1000; i++) world = movePopulation(world, 0.1);
+  function Harness() { const [state, setState] = useState(world); return <VillageWorkspace world={state} setWorld={setState} />; }
+  render(<Harness />);
+  expect(screen.getByRole('button', { name: 'INVITE TO STAY' })).toBeTruthy();
+  expect(screen.getByRole('status', { name: 'Visitor status' }).textContent).toContain('Mina');
+  fireEvent.click(screen.getByRole('button', { name: 'INVITE TO STAY' }));
+  expect(screen.getByRole('button', { name: 'Cancel placement' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel placement' }));
+  expect(screen.getByRole('button', { name: 'INVITE TO STAY' })).toBeTruthy();
 });

@@ -1,3 +1,4 @@
+import { initialPopulation, populationDay, PopulationState } from './population';
 import { CELL_WIDTH, Landscape, createLandscape, cellIndex, farmPosition } from './landscape';
 // Phase 1 rules: edit these defaults or use the parameter panel. Units are explicit.
 export interface Parameters {
@@ -19,14 +20,15 @@ export const seasonRules = [
   { name: 'Winter', temperatureOffset: -15, rainMultiplier: 0.5 },
 ];
 export interface Crop { growth: number; health: number; stress: number; age: number }
-export interface Plot { id: number; waterMm: number; drainage: number; crop: Crop | null }
+export interface Plot { ownerId: 'su'; id: number; waterMm: number; drainage: number; crop: Crop | null }
 export interface Weather { kind: 'Rain' | 'Cloudy' | 'Clear'; rainfallMm: number; temperatureC: number }
 export interface PlotObservation { id: number; moisture: number; health: number | null; growth: number | null; expectedYield: number; status: string }
 export interface DailyRecord extends Weather { day: number; season: string; plots: PlotObservation[]; harvested: number }
 export interface EcologyCell { waterMm: number; soilMoisture: number; soilFertility: number; vegetationHealth: number; biomass: number }
-export interface WorldEvent { day: number; time: string; type: 'weather' | 'soil' | 'river' | 'crop' | 'action'; description: string }
+export interface WorldEvent { day: number; time: string; type: 'weather' | 'soil' | 'river' | 'crop' | 'action' | 'population'; description: string }
 export interface Ecology { cells: EcologyCell[]; riverStorageM3: number; riverLevel: number; runoffM3: number; dischargeM3: number }
 export interface WorldState {
+  population: PopulationState;
   landscape: Landscape; ecology: Ecology; today: WorldEvent[]; weather: Weather | null; season: string;
   day: number; randomState: number; parameters: Parameters; plots: Plot[];
   harvested: number; history: DailyRecord[];
@@ -45,8 +47,8 @@ export function createWorld(parameters: Parameters = defaultParameters): WorldSt
   const error = validateParameters(parameters); if (error) throw new Error(error);
   const landscape = createLandscape(parameters.seed);
   const ecology: Ecology = { cells: landscape.cells.map(c => ({ waterMm: parameters.soilCapacityMm * 0.55, soilMoisture: 0.55, soilFertility: parameters.fertility * c.fertility, vegetationHealth: 0.8, biomass: 0.8 })), riverStorageM3: 65, riverLevel: 0.65, runoffM3: 0, dischargeM3: 0 };
-  return { landscape, ecology, today: [], weather: null, season: 'Spring', day: 0, randomState: parameters.seed >>> 0, parameters: { ...parameters }, harvested: 0, history: [],
-    plots: Array.from({ length: 9 }, (_, id) => ({ id, waterMm: parameters.soilCapacityMm * 0.55,
+  return { population: initialPopulation(parameters.seed), landscape, ecology, today: [], weather: null, season: 'Spring', day: 0, randomState: parameters.seed >>> 0, parameters: { ...parameters }, harvested: 0, history: [],
+    plots: Array.from({ length: 9 }, (_, id) => ({ ownerId: 'su', id, waterMm: parameters.soilCapacityMm * 0.55,
       drainage: landscape.cells[cellIndex(farmPosition(id).x, farmPosition(id).z)].drainage, crop: { growth: 0, health: 1, stress: 0, age: 0 } })) };
 }
 export function expectedYield(crop: Crop | null, p: Parameters): number {
@@ -137,10 +139,10 @@ export function advanceDay(world: WorldState, fixture?: Weather): WorldState {
     plots: plots.map(plot => ({ id: plot.id, moisture: plot.waterMm / p.soilCapacityMm,
       health: plot.crop?.health ?? null, growth: plot.crop?.growth ?? null,
       expectedYield: expectedYield(plot.crop, p), status: cropStatus(plot.crop) })) };
-  return { ...world, day, season: season.name, weather, today, ecology, randomState, plots, history: [...world.history, record] };
+  return populationDay({ ...world, day, season: season.name, weather, today, ecology, randomState, plots, history: [...world.history, record] });
 }
 export function advanceDays(world: WorldState, count: number): WorldState {
-  let next = world; for (let i = 0; i < count; i++) next = advanceDay(next); return next;
+  let next = world; for (let i = 0; i < count; i++) { const before = next.population.mina; next = advanceDay(next); if (!before && next.population.mina) break; } return next;
 }
 export function actOnPlot(world: WorldState, id: number, action: 'water' | 'plant' | 'harvest' | 'clear'): WorldState {
   const plot = world.plots.find(p => p.id === id); if (!plot) return world;
@@ -154,5 +156,7 @@ export function actOnPlot(world: WorldState, id: number, action: 'water' | 'plan
   }
   const position = farmPosition(id), index = cellIndex(position.x, position.z);
   const cells = world.ecology.cells.map((c, i) => i === index ? { ...c, waterMm: next.waterMm, soilMoisture: next.waterMm / world.parameters.soilCapacityMm } : c);
-  return { ...world, harvested, ecology: { ...world.ecology, cells }, today: [...world.today, { day: world.day, time: '24:00', type: 'action' as const, description: `${action} · plot ${id + 1}${action === 'harvest' ? ` · ${harvested - world.harvested} strawberries` : ''}` }].slice(-20), plots: world.plots.map(p => p.id === id ? next : p) };
+  const amount = harvested - world.harvested;
+  const population = amount > 0 ? { ...world.population, foodReserve: world.population.foodReserve + amount, harvests: [...world.population.harvests, { day: world.day, amount }] } : world.population;
+  return { ...world, population, harvested, ecology: { ...world.ecology, cells }, today: [...world.today, { day: world.day, time: '24:00', type: 'action' as const, description: `Su: ${action} · plot ${id + 1}${action === 'harvest' ? ` · ${harvested - world.harvested} strawberries` : ''}` }].slice(-20), plots: world.plots.map(p => p.id === id ? next : p) };
 }

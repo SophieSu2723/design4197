@@ -1,5 +1,7 @@
 # Living Village — ecological valley
 
+Phase 2 now adds Su, Mina, surplus-driven arrivals, invitation and bakery placement. See [PHASE2_POPULATION.md](PHASE2_POPULATION.md) for current population rules and tab-switch persistence. The ecology details below remain applicable.
+
 Experiment 03 now uses the same `.noise-app` design tokens, sidebar, typography, controls, viewport, camera interaction, and floating diagnostics as experiments 01 and 02. The identical slider component has been extracted into `components/LabSlider.tsx`; their procedural algorithms remain unchanged.
 
 ## Try it
