@@ -2,20 +2,20 @@
 
 Phase 2 now adds Su, Mina, surplus-driven arrivals, invitation and bakery placement. See [PHASE2_POPULATION.md](PHASE2_POPULATION.md) for current population rules and tab-switch persistence. The ecology details below remain applicable.
 
-Experiment 03 now uses the same `.noise-app` design tokens, sidebar, typography, controls, viewport, camera interaction, and floating diagnostics as experiments 01 and 02. The identical slider component has been extracted into `components/LabSlider.tsx`; their procedural algorithms remain unchanged.
+Experiment 03 now uses the same `.noise-app` design tokens, sidebar, typography, controls, viewport, camera interaction, and floating diagnostics as experiments 01 and 02. The identical slider component has been extracted into `src/components/LabSlider.tsx`; their procedural algorithms remain unchanged.
 
 ## Try it
 
-Run `npm start` from Assignment1 and open http://localhost:3000. Choose 03 / Living Village. Advance one day, play 30 days, or advance 30 days instantly. Open Daily records for the full observation table and CSV export. Click a farm bed or use the plot selector to water, harvest, clear, or replant. Parameter edits apply when selecting Apply parameters & reset.
+Run `npm start` from the repository root and open http://localhost:3000. Choose 03 / Living Village. Advance one day, play 30 days, or advance 30 days instantly. Open Daily records for the full observation table and CSV export. Click a farm bed or use the plot selector to water, harvest, clear, or replant. Parameter edits apply when selecting Apply parameters & reset.
 
 WORLD STATE reports the current season/day, weather, temperature, rainfall, mean ecological soil moisture, channel depth, mean vegetation health, planted-crop health, and expected harvest. TODAY contains measured changes from that day's update, not generated story text. 00:00 marks the daily weather schedule; 06:00 is the first completed interval; 24:00 is the end of that day. Rainfall is distributed evenly across four six-hour intervals. Actions between days are recorded at the day boundary.
 
 ## Files and editable rules
 
-- `src/village/landscape.ts`: fixed 40 m valley, shared value-noise utility, carved graded stream, farm terrace, farmhouse/path exclusion zones, 32×32 ecological cells, terrain slope/drainage/fertility, suitability-filtered seeded vegetation sites. The valley shape is fixed for this study; the experiment seed changes site variation and weather. No daily re-scattering occurs.
-- `src/village/simulation.ts`: authoritative WorldState, seasonal weather, four six-hour water/plant updates per day, crop actions, runoff reservoir, and structured observations. Contains all editable defaults. Renderer imports no rule decisions.
-- `src/village/FarmView.tsx`: terrain, channel water ribbon, procedural leaf canopies/branches, grass, flowers, shrubs, rocks, farmhouse, paths, and farm visuals. Updates material colors, instance transforms, water surface, and crop meshes from world state. Static scene geometry persists between daily updates.
-- `src/village/VillageWorkspace.tsx`: original lab shell and controls grouped into Time & Climate, Ecology, Farm, and disabled Population. Existing per-plot daily records and CSV are retained as an optional overlay.
+- `src/experiments/03-living-village/landscape.ts`: fixed 40 m valley, shared value-noise utility, carved graded stream, farm terrace, farmhouse/path exclusion zones, 32×32 ecological cells, terrain slope/drainage/fertility, suitability-filtered seeded vegetation sites. The valley shape is fixed for this study; the experiment seed changes site variation and weather. No daily re-scattering occurs.
+- `src/experiments/03-living-village/simulation.ts`: authoritative WorldState, seasonal weather, four six-hour water/plant updates per day, crop actions, runoff reservoir, and structured observations. Contains all editable defaults. Renderer imports no rule decisions.
+- `src/experiments/03-living-village/rendering/FarmView.tsx`: terrain, channel water ribbon, procedural leaf canopies/branches, grass, flowers, shrubs, rocks, farmhouse, paths, and farm visuals. Updates material colors, instance transforms, water surface, and crop meshes from world state. Static scene geometry persists between daily updates.
+- `src/experiments/03-living-village/VillageWorkspace.tsx`: original lab shell and controls grouped into Time & Climate, Ecology, Farm, and active Population controls for Su and Mina. Existing per-plot daily records and CSV are retained as an optional overlay.
 
 ## Explicit causal rules
 
@@ -29,7 +29,7 @@ No river-to-soil groundwater transfer, lateral soil flow, erosion under building
 
 ## Scope and limitations
 
-Includes farmhouse geometry as scenery, but no building management, NPCs, visitors, relationships, memory, dialogue, quests, LLM agents, or narrative generation. The TODAY log is numerical event output only. State is in memory: refreshing or switching tabs resets the village; export CSV first to keep observations. Existing noise and voxel workspaces remain available.
+Su and Mina are present, with Mina arrival, invitation, placement, and a simple daily routine. There is no building management, relationship system, memory, dialogue, quests, LLM agent, or narrative generation. The TODAY log is numerical event output only. State is in memory: refreshing the page resets the village; switching experiments preserves it for the session; export CSV first to keep observations. Existing noise and voxel workspaces remain available.
 
 ## Verification
 

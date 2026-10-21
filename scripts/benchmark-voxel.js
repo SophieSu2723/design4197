@@ -4,7 +4,7 @@ const ts = require('typescript');
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
 }).outputText, filename);
-const { initialVoxel, listChunks, meshChunk } = require('../src/utils/voxel.ts');
+const { initialVoxel, listChunks, meshChunk } = require('../src/experiments/02-voxel-terrain/voxel.ts');
 for (const resolution of [16, 32, 64]) {
   const settings = { ...initialVoxel, resolution };
   const chunks = listChunks(settings);

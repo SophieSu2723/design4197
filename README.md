@@ -39,3 +39,7 @@ CI=true npm test -- --watchAll=false --runInBand
 ```
 
 The tests cover noise sampling and erosion, voxel density and meshing, and Living Village simulation, population, and workspace interactions.
+
+## Credits
+
+The noise utility is based on the value-noise implementation from [Procedural World Building](https://github.com/jomasan/Procedural-World-Building). The marching-cubes lookup table retains its MIT notice in `src/experiments/02-voxel-terrain/marchingTables.ts`.

@@ -16,7 +16,7 @@ Su and Mina are labeled in the 3D view. Population diagnostics report residents,
 
 ## State and rules
 
-`src/village/population.ts` contains `populationRules`, villager/resource state, arrival rules, route search, movement, invitation, placement validation and settlement. Defaults:
+`src/experiments/03-living-village/population.ts` contains `populationRules`, villager/resource state, arrival rules, route search, movement, invitation, placement validation and settlement. Defaults:
 
 - Maximum residents: 2, including Su.
 - Eligible reserve: strictly greater than 20 food units.

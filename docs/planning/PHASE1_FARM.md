@@ -6,7 +6,7 @@ Implemented as **03 / Living Village**, the default workspace. Noise and voxel t
 
 ## Run an experiment
 
-1. Run `npm start` from `Assignment1`, then open http://localhost:3000.
+1. Run `npm start` from the repository root, then open http://localhost:3000.
 2. Choose **Advance 30 days** to generate the complete daily table instantly, or **Play 30 days** for 500 ms/day playback. Pause allows inspecting or managing crops. Starting playback again runs 30 additional days from the current state.
 3. Choose any of nine plots using the selector or by clicking its soil/crop geometry. The daily table switches to that plot.
 4. Inspect rainfall, temperature, soil moisture, crop health, growth, expected yield, and maturity for each day. Export CSV includes every plot, not just the selected one.
@@ -17,7 +17,7 @@ Nine beds begin planted, with 55% soil moisture and full health. Soil drainage m
 
 ## Rules and customization
 
-Edit `src/village/simulation.ts`:
+Edit `src/experiments/03-living-village/simulation.ts`:
 
 - `defaultParameters`: seed, rain probability/intensity, baseline temperature, storage, evaporation, drainage, crop water uptake, growing duration, nominal yield, stress damage, health recovery, and fertility. All are also editable in the UI.
 - `seasonRules`: four 28-day seasons, seasonal rain multipliers and temperature offsets. Days 1–28 are spring; days 29–56 are summer.

@@ -5,7 +5,7 @@
 | Requirement | Implementation / evidence |
 | --- | --- |
 | Different tab | Noise field and Voxel terrain navigation in `src/App.tsx` |
-| Different density shapes | Sphere, box, torus, capsule, noise terrain and 3D caves in `src/utils/voxel.ts` |
+| Different density shapes | Sphere, box, torus, capsule, noise terrain and 3D caves in `src/experiments/02-voxel-terrain/voxel.ts` |
 | Sequential CSG | Ordered, editable union/subtract/intersect operations; order tests in `voxel.test.ts` |
 | Size, performance and chunking | Adjustable resolution/chunk size, live array memory and CPU timings; experiment below |
 | Meshing | Indexed marching cubes and exposed voxel faces |
