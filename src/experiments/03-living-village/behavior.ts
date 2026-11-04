@@ -1,34 +1,37 @@
 import type { WorldEvent, WorldState } from './simulation';
-import { LocationType, Point, recentHarvest, SpatialContext } from './population';
+import { LocationType, Point, recentHarvest, SpatialContext, MemoryPlace, PlaceMemory, routeBetween, routeLength, navigationFor } from './population';
+import { shopOpen, shopDoor, developmentOf } from './development';
+import { isMemoryPlace, EasternPlace, placeNames } from './places';
+import { expeditionOptions, selectExpedition, explorationWeather, explorationRoll, expeditionReason } from './exploration';
 // Phase 3: a resident's day is four seeded, weighted decisions, one per six-hour day part.
 // Placement, weather, farm state and needs change the weights; there is no fixed timetable.
 export type DayPart = 'morning' | 'midday' | 'afternoon' | 'evening';
-export type Goal = 'REST' | 'WORK' | 'VISIT_FARM' | 'VISIT_RIVER' | 'WALK' | 'RETURN_HOME';
+export type Goal = 'REST' | 'WORK' | 'VISIT_FARM' | 'VISIT_RIVER' | 'WALK' | 'RETURN_HOME' | 'EXPLORE' | 'SHOP';
 export type BehaviorEventType = 'VISITED_FARM' | 'VISITED_RIVER' | 'WALKED' | 'WORKED' | 'RESTED' | 'RETURNED_HOME' | 'STAYED_HOME';
 /** One decision: what was chosen, where it leads, and the needs and weights it was chosen with. */
-export interface Activity { part: DayPart; goal: Goal; target: LocationType; targetPosition: Point; energy: number; socialNeed: number; weights: Record<Goal, number> | null }
-export interface BehaviorInputs { part: DayPart; energy: number; socialNeed: number; atHome: boolean; context: SpatialContext; rainfallMm: number; temperatureC: number; riverLevel: number; farmActivity: number }
+export interface Activity { part: DayPart; goal: Goal; target: LocationType; targetPosition: Point; energy: number; socialNeed: number; weights: Record<Goal, number> | null; reason?: string }
+export interface BehaviorInputs { shopDistance?: number; exploration?: { target: EasternPlace; distance: number; drive: number }; memories?: Partial<Record<MemoryPlace, PlaceMemory>>; memoryFeedback?: boolean; part: DayPart; energy: number; socialNeed: number; atHome: boolean; context: SpatialContext; rainfallMm: number; temperatureC: number; riverLevel: number; farmActivity: number }
 
 export const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
-export const goals: Goal[] = ['REST', 'WORK', 'VISIT_FARM', 'VISIT_RIVER', 'WALK', 'RETURN_HOME'];
-export const goalTargets: Record<Goal, LocationType> = { REST: 'home', WORK: 'bakery', VISIT_FARM: 'farm', VISIT_RIVER: 'river', WALK: 'path', RETURN_HOME: 'home' };
-export const goalNames: Record<Goal, string> = { REST: 'Rest at home', WORK: 'Bakery work', VISIT_FARM: 'Visit Su’s farm', VISIT_RIVER: 'Visit the river', WALK: 'Walk the path', RETURN_HOME: 'Return home' };
+export const goals: Goal[] = ['REST', 'WORK', 'VISIT_FARM', 'VISIT_RIVER', 'WALK', 'RETURN_HOME', 'EXPLORE', 'SHOP'];
+export const goalTargets: Record<Goal, LocationType> = { REST: 'home', WORK: 'bakery', VISIT_FARM: 'farm', VISIT_RIVER: 'river', WALK: 'path', RETURN_HOME: 'home', EXPLORE: 'clearing', SHOP: 'shop' };
+export const goalNames: Record<Goal, string> = { REST: 'Rest at home', WORK: 'Bakery work', VISIT_FARM: 'Visit Su’s farm', VISIT_RIVER: 'Visit the river', WALK: 'Walk the path', RETURN_HOME: 'Return home', EXPLORE: 'Explore the eastern bank', SHOP: 'Visit the community shop' };
 export const behaviorRules = {
-  base: { REST: 1, WORK: 1.3, VISIT_FARM: 0.9, VISIT_RIVER: 0.7, WALK: 0.7, RETURN_HOME: 1 } as Record<Goal, number>,
+  base: { REST: 1, WORK: 1.3, VISIT_FARM: 0.9, VISIT_RIVER: 0.7, WALK: 0.7, RETURN_HOME: 1, EXPLORE: 1.4, SHOP: 2 } as Record<Goal, number>,
   time: {
-    morning: { REST: 1.1, WORK: 1.6, VISIT_FARM: 0.5, VISIT_RIVER: 0.4, WALK: 0.5, RETURN_HOME: 0.5 },
-    midday: { REST: 0.5, WORK: 1.4, VISIT_FARM: 1.1, VISIT_RIVER: 0.8, WALK: 1, RETURN_HOME: 0.6 },
-    afternoon: { REST: 0.6, WORK: 0.9, VISIT_FARM: 1.3, VISIT_RIVER: 1.3, WALK: 1.2, RETURN_HOME: 0.8 },
-    evening: { REST: 1.6, WORK: 0.4, VISIT_FARM: 0.4, VISIT_RIVER: 0.5, WALK: 0.6, RETURN_HOME: 2 },
+    morning: { REST: 1.1, WORK: 1.6, VISIT_FARM: 0.5, VISIT_RIVER: 0.4, WALK: 0.5, RETURN_HOME: 0.5, EXPLORE: 0.7, SHOP: 0.8 },
+    midday: { REST: 0.5, WORK: 1.4, VISIT_FARM: 1.1, VISIT_RIVER: 0.8, WALK: 1, RETURN_HOME: 0.6, EXPLORE: 1.5, SHOP: 1.4 },
+    afternoon: { REST: 0.6, WORK: 0.9, VISIT_FARM: 1.3, VISIT_RIVER: 1.3, WALK: 1.2, RETURN_HOME: 0.8, EXPLORE: 1.1, SHOP: 1.2 },
+    evening: { REST: 1.6, WORK: 0.4, VISIT_FARM: 0.4, VISIT_RIVER: 0.5, WALK: 0.6, RETURN_HOME: 2, EXPLORE: 0, SHOP: 0 },
   } as Record<DayPart, Record<Goal, number>>,
   maxTravelM: 30,                 // walking distance at which proximity reaches 0
   // Energy spent per day part (negative restores). Travel adds a per-metre cost.
-  activityEnergy: { REST: -0.25, WORK: 0.15, VISIT_FARM: 0.1, VISIT_RIVER: 0.08, WALK: 0.1, RETURN_HOME: -0.05 } as Record<Goal, number>,
+  activityEnergy: { REST: -0.25, WORK: 0.15, VISIT_FARM: 0.1, VISIT_RIVER: 0.08, WALK: 0.1, RETURN_HOME: -0.05, EXPLORE: 0.18, SHOP: 0.08 } as Record<Goal, number>,
   travelEnergyPerM: 0.004, overnightEnergy: 0.45,
   socialPerPart: 0.08, farmSocialRelief: 0.45, // time apart raises social need; visiting Su lowers it
   rainFullMm: 10, comfortableC: 18, comfortRangeC: 12, highRiverM: 0.8, floodRangeM: 0.6,
 };
-const outdoor: Goal[] = ['VISIT_FARM', 'VISIT_RIVER', 'WALK'];
+const outdoor: Goal[] = ['VISIT_FARM', 'VISIT_RIVER', 'WALK', 'EXPLORE', 'SHOP'];
 const partTimes: Record<DayPart, string> = { morning: '08:00', midday: '12:00', afternoon: '15:00', evening: '19:00' };
 const clamp = (v: number, min = 0, max = 1) => Math.max(min, Math.min(max, v));
 export const proximity = (distance: number) => 1 - clamp(distance / behaviorRules.maxTravelM);
@@ -48,14 +51,21 @@ export function goalWeights(i: BehaviorInputs): Record<Goal, number> {
     else w *= 0.3 + 0.7 * i.energy;
     if (goal === 'VISIT_FARM') w *= 0.5 + 1.5 * i.socialNeed;
     if (outdoor.includes(goal)) {
-      const d = travelDistance(goal, i.context);
-      w *= d === null ? 0 : 0.15 + 1.35 * proximity(d);
+      const d = goal === 'SHOP' ? i.shopDistance ?? null : goal === 'EXPLORE' ? i.exploration?.distance ?? null : travelDistance(goal, i.context);
+      w *= d === null ? 0 : goal === 'EXPLORE' || goal === 'SHOP' ? 1 / (1 + d / 45) : 0.15 + 1.35 * proximity(d);
       w *= 1 - 0.6 * wet;
     } else w *= 1 + 0.4 * wet;
     if (goal === 'WALK') w *= 1 + 0.5 * fair;
     if (goal === 'VISIT_FARM') w *= (1 + 0.2 * fair) * (1 + 0.5 * i.farmActivity);
     if (goal === 'VISIT_RIVER') w *= 1 - 0.8 * flood;
     if (goal === 'RETURN_HOME' && i.atHome) w = 0;
+    if (goal === 'SHOP') w *= 0.6 + i.socialNeed + 0.5 * (1 - i.energy);
+    const target = goal === 'EXPLORE' ? i.exploration?.target : goalTargets[goal];
+    if (goal === 'EXPLORE') {
+      if (!i.exploration || i.energy < 0.45 || i.rainfallMm >= 8 || i.riverLevel > 1.2 || i.temperatureC < 5 || i.temperatureC > 30) w = 0;
+      else w *= i.exploration.drive * (i.memories?.[i.exploration.target] ? 1 : 2.4) * (1 - i.socialNeed * 0.5);
+    }
+    if (i.memoryFeedback !== false && isMemoryPlace(target)) w *= 1 + 0.35 * clamp(i.memories?.[target]?.familiarity ?? 0);
     weights[goal] = w;
   }
   return weights;
@@ -79,15 +89,30 @@ export function behaviorDay(world: WorldState): WorldState {
   const { mina, settlement } = world.population;
   if (mina?.status !== 'resident' || !settlement || !mina.spatialContext || !world.weather) return world;
   const r = behaviorRules, context = mina.spatialContext, weather = world.weather, riverLevel = world.ecology.riverLevel;
-  const place = (type: LocationType) => settlement.locations.find(l => l.type === type)?.position ?? settlement.door;
+  const place = (type: LocationType) => type === 'shop' ? shopDoor : settlement.locations.find(l => l.type === type)?.position ?? settlement.door;
   const ready = world.plots.filter(p => p.crop && p.crop.health > 0 && p.crop.growth >= 1).length;
   const farmActivity = clamp(ready / world.plots.length + recentHarvest(world) / 50);
   let energy = clamp(mina.energy + r.overnightEnergy), socialNeed = mina.socialNeed ?? 0.3, atHome = true;
+  const options = expeditionOptions(world, mina, settlement.door);
+  let expeditionPlanned = false, shopPlanned = false, plannedPosition = mina.position;
+  const nav = navigationFor(world), dangerous = developmentOf(world).windKph >= 55;
   const plan: Activity[] = dayParts.map((part, index) => {
-    const weights = goalWeights({ part, energy, socialNeed, atHome, context, rainfallMm: weather.rainfallMm, temperatureC: weather.temperatureC, riverLevel, farmActivity });
-    const goal = chooseGoal(weights, behaviorRandom(world.parameters.seed, world.day, mina.id, index)), target = goalTargets[goal];
-    const activity: Activity = { part, goal, target, targetPosition: place(target), energy, socialNeed, weights };
-    energy = clamp(energy - r.activityEnergy[goal] - (travelDistance(goal, context) ?? 0) * r.travelEnergyPerM);
+    const candidate = selectExpedition(options, explorationRoll(world.parameters.seed, world.day, mina.id, index));
+    const exploration = !expeditionPlanned && candidate && explorationWeather(world).allowed ? { target: candidate.id, distance: candidate.distance, drive: world.population.explorationDrive ?? 1 } : undefined;
+    const shopRoute = !shopPlanned && shopOpen(world) ? routeBetween(plannedPosition, shopDoor, settlement.position, nav) : [];
+    const shopDistance = shopRoute.length ? routeLength(plannedPosition, shopRoute) : undefined;
+    const weights = goalWeights({ shopDistance, exploration, memories: mina.placeMemories, memoryFeedback: mina.memoryFeedback, part, energy, socialNeed, atHome, context, rainfallMm: weather.rainfallMm, temperatureC: weather.temperatureC, riverLevel, farmActivity });
+    for (const choice of outdoor) {
+      const target = choice === 'EXPLORE' ? candidate?.position : place(goalTargets[choice]);
+      if (dangerous || !target || (weights[choice] > 0 && !routeBetween(plannedPosition, target, settlement.position, nav).length)) weights[choice] = 0;
+    }
+    if (dangerous) weights.WORK = 0;
+    const goal = chooseGoal(weights, behaviorRandom(world.parameters.seed, world.day, mina.id, index)), target = goal === 'EXPLORE' ? candidate.id : goalTargets[goal];
+    const activity: Activity = { part, goal, target, targetPosition: goal === 'EXPLORE' ? candidate.position : place(target), energy, socialNeed, weights, reason: goal === 'EXPLORE' ? expeditionReason(candidate.id, mina) : undefined };
+    if (goal === 'EXPLORE') expeditionPlanned = true;
+    if (goal === 'SHOP') { shopPlanned = true; activity.reason = 'The open shop offers company and a meal when harvest stock is available.'; }
+    plannedPosition = activity.targetPosition;
+    energy = clamp(energy - r.activityEnergy[goal] - (goal === 'SHOP' ? shopDistance ?? 0 : goal === 'EXPLORE' ? candidate.distance : travelDistance(goal, context) ?? 0) * r.travelEnergyPerM);
     socialNeed = goal === 'VISIT_FARM' ? clamp(socialNeed - r.farmSocialRelief) : clamp(socialNeed + r.socialPerPart);
     atHome = target === 'home' || target === 'bakery';
     return activity;
@@ -96,7 +121,7 @@ export function behaviorDay(world: WorldState): WorldState {
   // Night is spent at home: an outing or late bakery work ends with a walk to the door.
   if (plan[3].target !== 'home') itinerary.push({ goal: 'Night · return home', destination: settlement.door, activity: { part: 'evening', goal: 'RETURN_HOME', target: 'home', targetPosition: settlement.door, energy, socialNeed, weights: null } });
   const events = behaviorEvents(world, plan);
-  const nextMina = { ...mina, route: [], dwellSeconds: 0, itinerary, energy, socialNeed, recentGoals: [...(mina.recentGoals ?? []), { day: world.day, goals: plan.map(a => a.goal) }].slice(-7) };
+  const nextMina = { ...mina, activity: undefined, route: [], dwellSeconds: 0, itinerary, energy, socialNeed, explorationReason: plan.find(a => a.goal === 'EXPLORE')?.reason ?? (explorationWeather(world).allowed ? 'Local activities won today’s weighted choices; needs and travel costs still apply.' : explorationWeather(world).reason), recentGoals: [...(mina.recentGoals ?? []), { day: world.day, goals: plan.map(a => a.goal) }].slice(-7) };
   // Stable sort keeps same-time events in insertion order.
   return { ...world, population: { ...world.population, mina: nextMina }, today: [...world.today, ...events].sort((a, b) => a.time.localeCompare(b.time)) };
 }
@@ -119,7 +144,7 @@ function behaviorEvents(world: WorldState, plan: Activity[]): WorldEvent[] {
     if (a.goal === 'VISIT_FARM') events.push(event(a, time, 'VISITED_FARM', `Mina visited Su’s farm ${when(run)}.`, 'su'));
     if (a.goal === 'VISIT_RIVER') events.push(event(a, time, 'VISITED_RIVER', `Mina spent time near the river ${when(run)}.`));
     if (a.goal === 'WALK') events.push(event(a, time, 'WALKED', `Mina walked along the village path ${when(run)}.`));
-    if (a.goal === 'RETURN_HOME') events.push(event(a, time, 'RETURNED_HOME', `Mina returned home from the ${previous.target} ${rain ? 'in the rain' : phrases[a.part]}.`));
+    if (a.goal === 'RETURN_HOME') events.push(event(a, time, 'RETURNED_HOME', `Mina returned home from ${placeNames[previous.target]} ${rain ? 'in the rain' : phrases[a.part]}.`));
     if (a.goal === 'REST' && a.part !== 'evening' && a.energy < 0.35) events.push(event(a, time, 'RESTED', `Mina rested at home ${phrases[a.part]}, tired.`));
   });
   return events;

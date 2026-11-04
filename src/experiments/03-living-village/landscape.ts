@@ -1,10 +1,13 @@
 import { sampleNoise } from '../../utils/noise';
+import { easternPlaces } from './places';
 export const WORLD_SIZE = 40, CELL_COUNT = 32, CELL_WIDTH = WORLD_SIZE / CELL_COUNT;
 export const riverX = (z: number) => 2 + Math.sin(z * 0.15) * 3;
 export const riverBed = (z: number) => -0.7 + (z + 20) * 0.018;
 export const farmPosition = (id: number) => ({ x: -10 + (id % 3) * 2.1, z: -4 + Math.floor(id / 3) * 2.1 });
 export const housePosition = { x: -9, z: 7 };
 export function terrainHeight(x: number, z: number): number {
+  // Continue east into a gently flattening ridge; original valley samples are unchanged.
+  if (x > 20) x = 20 + 10 * (1 - Math.exp(-(x - 20) / 10));
   const distance = Math.abs(x - riverX(z));
   const noise = sampleNoise(x * 0.12 + 8, z * 0.12 + 4, 2.3, 'value', 3, 0.45, 2);
   const rolling = 0.7 + Math.pow(distance / 12, 1.6) * 2.5 + noise * 1.4;
@@ -17,14 +20,17 @@ export function terrainHeight(x: number, z: number): number {
 }
 export function cellIndex(x: number, z: number) {
   const clamp = (v: number) => Math.max(0, Math.min(CELL_COUNT - 1, Math.floor(v)));
+  if (x > 20) return CELL_COUNT ** 2 + clamp((z + 20) / CELL_WIDTH) * 16 + Math.min(15, Math.floor((x - 20) / CELL_WIDTH));
   return clamp((z + 20) / CELL_WIDTH) * CELL_COUNT + clamp((x + 20) / CELL_WIDTH);
 }
 export function excluded(x: number, z: number) {
+  if (Math.abs(x - 25) < 3 && Math.abs(z - 6.5) < 3.5) return true;
+  if (easternPlaces.some(p => Math.hypot(x - p.position.x, z - p.position.z) < 2)) return true;
   return (x > -12 && x < -3.5 && z > -6 && z < 3) || (Math.abs(x + 9) < 3.4 && Math.abs(z - 7) < 3.2) || (Math.abs(x + 5) < 0.65 && z > 1 && z < 10) || (Math.abs(z - 9.5) < 0.65 && x > -10 && x < 19.5);
 }
 export interface TerrainCell { x: number; z: number; elevation: number; slope: number; waterDistance: number; drainage: number; fertility: number }
 export interface VegetationSite { x: number; z: number; cell: number; kind: 'grass' | 'flower' | 'shrub' | 'tree' | 'rock'; scale: number; rotation: number }
-export interface Landscape { cells: TerrainCell[]; sites: VegetationSite[] }
+export interface Landscape { cells: TerrainCell[]; sites: VegetationSite[]; expanded?: boolean }
 export function createLandscape(seed: number): Landscape {
   let state = seed >>> 0;
   const random = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
@@ -51,4 +57,30 @@ export function createLandscape(seed: number): Landscape {
     sites.push({ x, z, cell, kind, scale: 0.7 + random() * 0.7, rotation: random() * Math.PI * 2 });
   }
   return { cells, sites };
+}
+
+/** Append stable cells/sites without regenerating or reindexing the inhabited valley. */
+export function extendLandscape(original: Landscape, seed: number): Landscape {
+  if (original.expanded) return original;
+  const cells = Array.from({ length: 16 * CELL_COUNT }, (_, id) => {
+    const x = 20 + (id % 16 + 0.5) * CELL_WIDTH, z = (Math.floor(id / 16) + 0.5) * CELL_WIDTH - 20;
+    const slope = Math.atan(Math.hypot((terrainHeight(x + 0.2, z) - terrainHeight(x - 0.2, z)) / 0.4, (terrainHeight(x, z + 0.2) - terrainHeight(x, z - 0.2)) / 0.4));
+    const waterDistance = Math.abs(x - riverX(z));
+    return { x, z, elevation: terrainHeight(x, z), slope, waterDistance, drainage: 0.6 + slope * 1.5, fertility: Math.max(0.3, 0.95 - slope * 0.3 - waterDistance * 0.012) };
+  });
+  let state = (seed ^ 0x61c88647) >>> 0;
+  const random = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
+  const sites: VegetationSite[] = [], trees: { x: number; z: number }[] = [];
+  for (let i = 0; i < 3500; i++) {
+    const x = 20.01 + random() * 19.48, z = random() * 39 - 19.5, cell = cellIndex(x, z), c = cells[cell - 1024];
+    if (excluded(x, z) || c.slope > 0.7) continue;
+    const choice = random();
+    let kind: VegetationSite['kind'] = 'grass';
+    if (choice < 0.035 && trees.every(t => Math.hypot(t.x - x, t.z - z) > 2.8)) { kind = 'tree'; trees.push({ x, z }); }
+    else if (choice < 0.065) kind = 'rock';
+    else if (choice < 0.15) kind = 'shrub';
+    else if (choice < 0.28) kind = 'flower';
+    sites.push({ x, z, cell, kind, scale: 0.7 + random() * 0.7, rotation: random() * Math.PI * 2 });
+  }
+  return { cells: [...original.cells, ...cells], sites: [...original.sites, ...sites], expanded: true };
 }

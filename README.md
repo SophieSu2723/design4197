@@ -1,17 +1,19 @@
 # FIELD / LAB
 
-**A procedural world-building lab in three experiments: terrain from noise, solids from density fields, and a small valley where weather, ecology, food and settlement placement shape how a villager lives.**
+*A procedural valley about how a place becomes home through weather, distance, work and repeated visits.*
 
-Built with React, TypeScript and Three.js. Every system is a pure, seeded rule set that you can inspect while it runs.
+**[Run the project locally](#9-running-locally)** · **[Explore the process](#2-process-and-critique)** · **[Read the phase notes](docs/planning/)**
 
-![Su's living valley with Mina's current route drawn as a diagnostic line](docs/images/03-village-behavior.png)
+![The expanded valley with a community shop, river, farm and eastern ridge](docs/images/04-shop-preview.png)
+
+*A captured run of Living Village. The shop and ridge are later additions to the same world, not separate scenes.*
 
 ---
 
 ## Contents
 
-1. [Conceptual premise](#1-conceptual-premise)
-2. [The three experiments](#2-the-three-experiments)
+1. [Design position and references](#1-design-position-and-references)
+2. [Process and critique](#2-process-and-critique)
 3. [System architecture](#3-system-architecture)
 4. [01 / Noise Field: geography from noise](#4-01--noise-field-geography-from-noise)
 5. [02 / Voxel Terrain: surfaces from solids](#5-02--voxel-terrain-surfaces-from-solids)
@@ -24,19 +26,64 @@ Built with React, TypeScript and Three.js. Every system is a pure, seeded rule s
 
 ---
 
-## 1. Conceptual premise
+## 1. Design position and references
 
-FIELD / LAB treats a synthetic world as a **chain of causes**, not a painted backdrop. Each layer is generated from rules and feeds the next:
+> **When does a landscape become someone's home?** Can weather, access, work and repeated journeys leave enough evidence to answer that question without a scripted story?
+
+I study environment and distance because they make daily life materially different. Rain enters soil; soil affects crops and river storage; food and flooding change whether residents can work, visit or cross the bridge. Mina's house is deliberately placed by the visitor. That choice is the experiment: under the same seed, a home beside Su's farm and a home across the river create different route lengths and therefore different chances of meeting, walking and returning. The simulation decides the routines; the visitor sets their conditions.
+
+This project brings the class's procedural studies toward one inhabited world. The noise field informs its terrain; the voxel study remains an independent investigation of caves and solids. The authored valley and landmarks give the village a readable frame; seeded terrain detail, vegetation, weather, ecological state, routes and daily choices vary within it. The village's rule chain is:
 
 ```text
-NOISE → TERRAIN → WATER & SOIL → VEGETATION & CROPS → FOOD → POPULATION → PLACEMENT → BEHAVIOR → (memory → narrative, future)
+noise → terrain → rain → soil → river / crops / vegetation → food and access
+                                                      ↓
+             home placement → walking distance → daily decisions → completed journeys
+                                                                  ↓
+                                        familiarity, worn paths, construction and repair
+                                                                  ↺ future decisions
 ```
 
-The first two experiments study how *form* comes from mathematics: a height field from layered noise, and a volume from signed density functions. The third experiment, **Living Village**, asks what happens once that form becomes a place people inhabit. The village is a 40 × 40 m river valley with Su, a farmer. Weather changes the soil, the soil grows crops, and harvests become a food reserve. A surplus can attract a traveler, Mina. The player decides where she builds her home and bakery, and that decision changes her days.
+Two references guide different parts of this question. They are precedents, not specifications:
 
-The player never scripts what happens. **The player changes the conditions of the world, and the conditions change the probabilities.** The same seed and the same actions always reproduce the same history. Different placements, weather or harvest choices produce different histories.
+| Reference | What I take | What I change in this project |
+|---|---|---|
+| [*Stardew Valley*](https://www.stardewvalley.net/about/) | Farming, seasons, a town with recurring everyday destinations, and the sense that routines make a place familiar. | There is no quest or fixed villager schedule. Rain, soil water, harvest, travel distance and needs change the odds of an outing; an actual arrival, rather than a planned visit, adds familiarity. Farming is one way the ecology enters social life, not the whole subject. |
+| [Do Ho Suh's *Rubbing/Loving*](https://art21.org/read/conversation-starter-what-details-make-a-home/) | A way to think about home through the details and traces of inhabiting a space over time. | I translate this idea into a small, inspectable procedural rule: completed visits build a place record and can bias later choices. The numerical familiarity score is my design device, not a claim that Suh models memory this way. |
 
-## 2. The three experiments
+**What the visitor can change.** Ecology and storm controls edit the current run: they retain the day, residents, water, memories and past events, and their effects appear on the next simulated day unless the control says otherwise. Opening the eastern ridge adds land while preserving the original valley. A seed change or a named **Start… study** action explicitly begins another run. The large cause-and-effect panel reports measured changes, while the scene shows rain, river level, soil moisture, crop and plant condition, residents' routes and storm damage. Water movement is illustrated by markers; it is not a fluid simulation.
+
+## 2. Process and critique
+
+I developed the project by asking each system to produce a visible consequence for the next one. The phase notes preserve the rules, checks and limits behind these decisions.
+
+| Stage | Question and change | Evidence or lesson |
+|---|---|---|
+| [01 Noise Field](#4-01--noise-field-geography-from-noise) | Can layered noise make legible geography, and can erosion alter it? | Map/mesh comparison and measured height changes; this became the landform study. |
+| [02 Voxel Terrain](#5-02--voxel-terrain-surfaces-from-solids) | What can a density field express that a height field cannot? | Cave and CSG studies with marching-cubes/block-mesh comparison; a separate form experiment, not the village terrain. |
+| [03 Ecological valley](docs/planning/ECOLOGICAL_VALLEY.md) and [farm](docs/planning/PHASE1_FARM.md) | Make rain change soil, runoff, river, plant health and crops before adding residents. | Daily water budgets, scene colors/growth and a measured TODAY panel made the relation inspectable. |
+| [04 Arrival and placement](docs/planning/PHASE2_POPULATION.md), then [spatial behavior](docs/planning/PHASE3_BEHAVIOR.md) | Could food surplus bring Mina, and could the location of her home affect her routine? | A same-seed, three-site comparison showed large differences in planned farm and walking choices (table below). Manual placement remains because it exposes the design variable. |
+| [05 Place memory and exploration](docs/planning/PHASE4_EXPLORATION.md) | What if a place changes future choices only after someone actually reaches it? | Completed arrivals now update familiarity and discovery. Footsteps expose trails and compress nearby grass; unused traces fade. The bridge opens two eastern destinations. |
+| [06 Shop, storm and recovery](docs/planning/PHASE5_DEVELOPMENT.md) | What happens to shared daily life when weather breaks access? | The ridge adds land; Su's completed work visits build a shop; storms can close the bridge and damage crops, plants and roofing; later visits repair access. A recorded run is described below. |
+
+**A controlled placement comparison.** In an earlier behavior model, I kept seed 42 and the weather/decision rolls fixed, changed only Mina's home site, and ran 60 days (240 day-part *plans* per site):
+
+| Home site | Walk to farm / river / path | Planned farm choices | Planned river choices | Planned walks | Outdoor outings/day, dry / rainy |
+|---|---|---:|---:|---:|---:|
+| Beside the farm | 8 / 6 / 2 m | 38 | 21 | 39 | 1.83 / 0.83 |
+| East riverbank | 32 / 1 / 11 m | 11 | 34 | 31 | 1.46 / 0.50 |
+| Remote south-east | 44 / 7 / 44 m | 10 | 39 | 6 | 1.06 / 0.33 |
+
+These are **historical decision counts, not proof of completed visits**. That was a weakness of the earlier log: it used names such as `VISITED_FARM` for planned actions. The current memory and discovery system counts only actual arrivals. The narrow valley also puts every valid site fairly close to some riverbank, so the placement experiment separates farm access more clearly than river access. See the original [behavior study](docs/planning/PHASE3_BEHAVIOR.md).
+
+**A failed ecology presentation.** An early dry exploration preset made the new paths easy to see, but prolonged playback also stressed crops and vegetation. That image [records the trade-off](docs/images/03-exploration-check.png): a useful controlled path study is not automatically a healthy, balanced village. The preset is a fresh experiment, not a recommended long-term climate.
+
+**A storm observation.** In one prepared seed-42 run, Su framed the shop on day 1 and finished it on day 2. A queued 90 km/h storm on day 5 damaged 466 plant sites and felled 31 trees; Su repaired the bridge on days 6–7 and brought the shop to 81% integrity on day 8. These dates and counts describe that run, not every seed or sequence of actions. The [shop capture](docs/images/04-shop-preview.png) shows an empty store because construction creates no food; the [storm capture](docs/images/04-storm-preview.png) shows cumulative damage after a second storm. Repair needs access and calm weather, so recovery is conditional.
+
+**How to see the present system.** In **03 / Living Village**, choose **Start exploration study** for a reproducible day-zero settlement, then **Open eastern ridge** and **Commission shop**. Use **Play 30 days** or **Run world** to watch completed routes, then **Queue one storm** (around 90 km/h) and advance a day. Compare the bridge, plants, crops, shop and residents before and after; read the cause-and-effect and place-memory panels for why. Adjust rain, soil, wind or curiosity during playback to alter the existing world without erasing its history. To compare house sites, start fresh runs with the same seed, invite Mina and place her home at different valid points.
+
+**What remains unresolved.** The valley has two residents and authored destinations. Its place memory is a simple score, not an account of human emotion or the experience in Suh's work. Vegetation changes health at fixed sites; it does not colonize freely. Fallen trunks do not block paths. The shop stores food but has no prices or broader economy. The storm model is illustrative rather than structural engineering, and a browser refresh does not yet preserve the run. These limits matter when reading the screenshots as evidence.
+
+### The three experiments
 
 | | Experiment | Question | Core techniques |
 |---|---|---|---|
@@ -71,7 +118,7 @@ flowchart LR
   V -- raycast hit point --> C
 ```
 
-This separation is what makes the systems testable (54 Jest tests run without WebGL) and reproducible. Rendering can never change an outcome.
+This separation is what makes the systems testable (71 Jest tests run without WebGL) and reproducible. Rendering can never change an outcome.
 
 ## 4. 01 / Noise Field: geography from noise
 
@@ -189,13 +236,13 @@ each day:
         if arrivalRNG() < p: Mina appears at the eastern path and walks to Su's door
 ```
 
-When Mina arrives, the player can **invite** her, then click the terrain to place her home and bakery. The click becomes a raycast hit, then world X/Z, then pure validation. The site must be inside the valley, on gentle slope and level enough, on dry land, clear of the farm, house and paths, and its door must have a walkable route. **Routes** come from a breadth-first search on a 40 × 40 walkability grid that excludes water, steep ground, farm beds and buildings, with a footbridge across the stream.
+When Mina arrives, the player can **invite** her, then click the terrain to place her home and bakery in the original valley. The click becomes a raycast hit, then world X/Z, then pure validation. The site must be inside the valley, on gentle slope and level enough, on dry land, clear of the farm, house and paths, and its door must have a walkable route. **Routes** come from a breadth-first search on a 40 × 40 walkability grid, extended to 60 × 40 when the ridge opens. Water, steep ground, farm beds and buildings are excluded. Bridge closures and new construction change the navigation topology and invalidate affected cached routes.
 
 When she settles, the simulation stores her **spatial context**. This includes straight-line and *routed walking* distances to the farm, the nearest reachable riverbank and the nearest reachable path, plus local fertility, moisture, elevation and slope. It also stores five named destinations: home, bakery, farm, river and path.
 
 ### 6.5 Behavior: placement → tendency → pattern
 
-Mina has no timetable. Each day she makes **four decisions**, one each for morning, midday, afternoon and evening. Each decision chooses among `REST`, `WORK`, `VISIT_FARM`, `VISIT_RIVER`, `WALK` and `RETURN_HOME`, using weights built from five factors:
+The original spatial-behavior study gave Mina **four decisions** per day, one each for morning, midday, afternoon and evening. She had no timetable. Each decision chose among `REST`, `WORK`, `VISIT_FARM`, `VISIT_RIVER`, `WALK` and `RETURN_HOME`, using weights built from five factors:
 
 ```text
 weight(goal) = base(goal)
@@ -224,19 +271,19 @@ planDay(world):
 
 **Environment rules stay subtle.** Rain multiplies outdoor goals by `1 − 0.6 · wet` and home goals by `1 + 0.4 · wet`. Comfortable dry weather makes walks more likely. A river above 0.8 m makes river visits less likely. Ripe crops or a recent harvest draw her to the farm. Needs stay within 0–1.
 
-**Observed results** (seed 42, 60 days = 240 decisions per placement, same random rolls for each):
+**Historical behavior baseline, before exploration and completed-arrival familiarity** (seed 42, 60 days = 240 planned decisions per placement, same random rolls for each). These counts describe that earlier model, not the current expanded choice set:
 
-| Home site | Walk to farm / river / path | Farm visits | River visits | Walks | Outings per day, dry / rainy |
+| Home site | Walk to farm / river / path | Planned farm choices | Planned river choices | Planned walks | Outings per day, dry / rainy |
 |---|---|---|---|---|---|
 | Beside the farm | 8 / 6 / 2 m | **38** | 21 | 39 | 1.83 / 0.83 |
 | East riverbank | 32 / 1 / 11 m | 11 | **34** | 31 | 1.46 / 0.50 |
 | Remote south-east | 44 / 7 / 44 m | 10 | 39 | **6** | **1.06** / 0.33 |
 
-Living beside the farm roughly triples farm visits. A remote home cuts walks and total outings, and rain roughly halves outdoor activity everywhere. Each placement also produces a pattern you can see in the needs: a home far from the farm leaves Mina's social need high, because the need pulls her toward Su while the distance pushes back.
+In that baseline, living beside the farm roughly tripled farm *choices*. A remote home cut walks and total outings, and rain reduced outdoor activity at every site. A home far from the farm also left Mina's social need high: the need pulled her toward Su while the distance pushed back. The later exploration, shop and familiarity rules add possible destinations and alter these distributions; this table is not a measurement of the current version.
 
 ![Behavior diagnostics: current goal, target, needs, odds, 7-day tally, walking distances](docs/images/03-behavior-panel.png)
 
-**Events for future memory.** Meaningful transitions become structured `WorldEvent`s, such as `{ type: 'behavior', action: 'VISITED_FARM', actorId: 'mina', targetId: 'su', location: 'farm', context: { part, rainfallMm, riverLevel, energy, socialNeed } }`, with a short template sentence such as *"Mina visited Su's farm in the afternoon."* Consecutive parts at the same place merge into one event, and a day without outings becomes a single `STAYED_HOME`. A planned memory phase can later interpret these raw events.
+**Plans and completed arrivals.** The legacy behavior log stores planned daily choices, including action names such as `VISITED_FARM`; it does not prove a route was completed. Place memories and the discovery journal are updated separately by actual movement. Consecutive stays at the same destination add no second arrival. Failed routes receive no visit credit.
 
 **Diagnostic overlay.** The **Behavior target** toolbar button draws Mina's remaining route and a ring on her target. It's for inspection, not decoration, so it's off by default.
 
@@ -260,11 +307,11 @@ Phase-by-phase design notes are in [docs/planning/](docs/planning/): [overall pl
   | Arrival | Separate LCG, drawn only on eligible days | Mina's arrival roll |
   | Behavior | Stateless hash of `(seed, day, villagerId, decisionIndex)` | Each day-part decision |
 
-  So adding behavior never changes the weather, and fast-forwarding gives the same history as watching playback.
+  Adding behavior never changes the weather. With the same seed, actions and completed routines, movement speed does not change arrival memories or trail wear. Instant ecological advances do not replay footsteps; use playback for exploration comparisons.
 * **Simulation and rendering are separate.** Three.js never decides anything. Rules live in a handful of plain modules with their constants grouped in editable rule objects (`defaultParameters`, `populationRules`, `behaviorRules`).
 * **Continuous causes, not zones.** Placement effects come from continuous walking distances, so there are no hard-coded "near farm" or "near river" zones. A new site produces new behavior without new rules.
 * **Inspectable systems.** The FIELD / LAB interface is a lab notebook, not a game HUD. It shows measured world state, a daily log, odds and tallies, so you can trace the reason behind each change.
-* **Small, scoped phases.** Each phase adds one link to the chain (farm → population → behavior) and comes with its own tests and design note. Larger features (relationships, memory, narrative, more villagers) are deliberately deferred.
+* **Small, scoped phases.** Each phase adds a link to the chain (farm → population → behavior → memory and trails → construction and repair) and comes with tests and a design note. Relationships, narrative, mining, factories and more villagers are deferred.
 
 ## 8. AI-assisted development
 
@@ -292,7 +339,7 @@ npm start
 Open <http://localhost:3000> and switch experiments using the tabs at the top. State is kept in memory: switching tabs keeps the village, but refreshing the page starts a new world.
 
 ```bash
-CI=true npm test -- --watchAll=false --runInBand   # 54 tests: noise, erosion, voxels, ecology, population, behavior, UI
+CI=true npm test -- --watchAll=false --runInBand   # 71 tests: terrain, ecology, population, exploration, construction, storms, UI
 npm run build                                      # production build in build/
 npm run benchmark:voxel                            # optional voxel meshing benchmark
 ```
@@ -344,6 +391,8 @@ scripts/                            # Dev-server launcher, voxel benchmark
 * Lorensen and Cline (1987): "Marching Cubes: A High Resolution 3D Surface Construction Algorithm"; Paul Bourke, [Polygonising a scalar field](https://paulbourke.net/geometry/polygonise/).
 * Inigo Quilez: [distance functions](https://iquilezles.org/articles/distfunctions/) and [domain warping](https://iquilezles.org/articles/warp/).
 * Dave Mark: *Behavioral Mathematics for Game AI*, on utility-based weighted decisions.
+* [*Stardew Valley*: official overview](https://www.stardewvalley.net/about/), for farming, seasons and community rhythms.
+* [Art21 on Do Ho Suh's *Rubbing/Loving*](https://art21.org/read/conversation-starter-what-details-make-a-home/), for spatial memory and traces of inhabitation.
 
 **Tools**
 

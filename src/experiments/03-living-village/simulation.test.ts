@@ -1,4 +1,26 @@
-import { actOnPlot, advanceDay, advanceDays, createWorld, defaultParameters, expectedYield, soilStep, validateParameters } from './simulation';
+import { actOnPlot, advanceDay, advanceDays, createWorld, defaultParameters, expectedYield, soilStep, validateParameters, updateEcologyParameters } from './simulation';
+
+test('live ecology edits preserve history, water, terrain and inhabitants; new rules resolve on next day', () => {
+  const world = advanceDays(createWorld(), 3);
+  const edited = updateEcologyParameters(world, { soilCapacityMm: 5, fertility: 0.2, rainChance: 1, rainMaxMm: 60 });
+  expect(edited.population).toBe(world.population);
+  expect(edited.history).toBe(world.history);
+  expect(edited.landscape).toBe(world.landscape);
+  expect(edited.ecology).toBe(world.ecology);
+  expect(edited.randomState).toBe(world.randomState);
+  expect(edited.plots).toBe(world.plots);
+  const wet = advanceDay(edited, { kind: 'Rain', rainfallMm: 30, temperatureC: 18 });
+  const dry = advanceDay(edited, { kind: 'Clear', rainfallMm: 0, temperatureC: 18 });
+  expect(wet.ecology.runoffM3).toBeGreaterThan(dry.ecology.runoffM3);
+  expect(wet.ecology.riverLevel).toBeGreaterThan(dry.ecology.riverLevel);
+  expect(wet.population.su.currentGoal).toBe('Shelter at home from rain');
+  expect(dry.population.su.currentGoal).toBe('Tend the farm');
+  wet.ecology.cells.forEach((cell, i) => {
+    expect(cell.waterMm).toBeLessThanOrEqual(5);
+    expect(cell.soilFertility).toBeCloseTo(0.2 * wet.landscape.cells[i].fertility);
+  });
+  expect(updateEcologyParameters(world, { rainChance: -1 })).toBe(world);
+});
 
 test('30 days are deterministic, recorded individually, and cross the season boundary', () => {
   const initial = createWorld(); const result = advanceDays(initial, 30);

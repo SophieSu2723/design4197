@@ -2,9 +2,46 @@ import { useState } from 'react';
 import { act, fireEvent, render, screen, cleanup, within } from '@testing-library/react';
 import VillageWorkspace from './VillageWorkspace';
 import { createWorld, advanceDay, advanceDays, actOnPlot } from './simulation';
-import { inviteMina, movePopulation, settleMina } from './population';
+import { inviteMina, movePopulation, settleMina, hasUnfinishedRoutine } from './population';
 jest.mock('./rendering/FarmView', () => () => <div>Farm placeholder</div>);
 afterEach(() => { cleanup(); jest.useRealTimers(); });
+test('expansion, shop commissioning and storm controls preserve the current run', () => {
+  render(<VillageWorkspace />);
+  const build = screen.getByRole('button', { name: 'Commission shop' }) as HTMLButtonElement;
+  expect(build.disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Open eastern ridge' }));
+  expect(screen.getByText('60 × 40 m · connected valley')).toBeTruthy();
+  expect(build.disabled).toBe(false);
+  fireEvent.click(build);
+  expect(screen.getByRole('progressbar', { name: 'Shop construction' }).getAttribute('value')).toBe('0');
+  fireEvent.change(screen.getByRole('slider', { name: 'Peak storm wind (km/h)' }), { target: { value: '100' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Queue one storm' }));
+  expect(screen.getByRole('button', { name: 'Cancel queued storm' })).toBeTruthy();
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 0');
+});
+test('climate sliders edit the ongoing world without resetting its day or observations', () => {
+  jest.useFakeTimers();
+  render(<VillageWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'Advance 1 day' }));
+  fireEvent.change(screen.getByRole('slider', { name: 'Spring rain probability' }), { target: { value: '1' } });
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 1');
+  act(() => { jest.advanceTimersByTime(100000); });
+  fireEvent.click(screen.getByRole('button', { name: 'Advance 1 day' }));
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 2');
+  expect(screen.getByRole('region', { name: 'Ecological cause and effect' }).textContent).toContain('Rain');
+  expect(screen.queryByRole('combobox', { name: 'Plot' })).toBeNull();
+});
+test('settled-life entry exposes memory process and prevents skipping unfinished walks', () => {
+  render(<VillageWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'Start settled-life study' }));
+  expect(screen.getByText('0 completed arrivals')).toBeTruthy();
+  expect(screen.getByRole('progressbar', { name: 'Su’s farm familiarity' })).toBeTruthy();
+  expect((screen.getByRole('button', { name: 'Advance 1 day' }) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button', { name: 'Advance 30 days' }) as HTMLButtonElement).disabled).toBe(true);
+  const toggle = screen.getByRole('checkbox', { name: 'Let familiarity influence future choices' });
+  fireEvent.click(toggle);
+  expect(screen.getByText('Memory influence paused')).toBeTruthy();
+});
 test('advance 30 days exposes every daily metric and reset clears the experiment', () => {
   render(<VillageWorkspace />);
   fireEvent.click(screen.getByRole('button', { name: 'Advance 30 days' }));
@@ -14,20 +51,46 @@ test('advance 30 days exposes every daily metric and reset clears the experiment
   fireEvent.click(screen.getByRole('button', { name: 'Reset simulation' }));
   expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 0');
 });
-test('playback advances once per interval, pauses, and stops after 30 days', () => {
-  jest.useFakeTimers(); render(<VillageWorkspace />);
+test('playback waits for Su even without Mina, pauses, and stops after 30 completed daily advances', () => {
+  jest.useFakeTimers();
+  let finishWalks = () => {};
+  function Harness() {
+    const [world, setWorld] = useState(createWorld());
+    finishWalks = () => setWorld(w => {
+      let next = w;
+      for (let step = 0; step < 1000 && hasUnfinishedRoutine(next.population.su); step++) next = movePopulation(next, 1);
+      return next;
+    });
+    return <VillageWorkspace world={world} setWorld={setWorld} />;
+  }
+  render(<Harness />);
   fireEvent.click(screen.getByRole('button', { name: 'Play 30 days' }));
   act(() => { jest.advanceTimersByTime(1000); });
-  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 2');
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 1');
   fireEvent.click(screen.getByRole('button', { name: 'Pause playback' }));
   act(() => { jest.advanceTimersByTime(1000); });
-  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 2');
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 1');
   fireEvent.click(screen.getByRole('button', { name: 'Reset simulation' }));
   fireEvent.click(screen.getByRole('button', { name: 'Play 30 days' }));
-  act(() => { jest.advanceTimersByTime(15000); });
+  for (let day = 0; day < 30; day++) {
+    act(() => { finishWalks(); });
+    act(() => { jest.advanceTimersByTime(500); });
+  }
   expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Paused · Day 30');
   act(() => { jest.advanceTimersByTime(1000); });
   expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 30');
+});
+test('exploration study starts a dry settled scenario and expanded/follow views preserve it', () => {
+  jest.useFakeTimers(); render(<VillageWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'Start exploration study' }));
+  expect((screen.getByRole('slider', { name: 'Spring rain probability' }) as HTMLInputElement).value).toBe('0');
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Running');
+  fireEvent.change(screen.getByRole('combobox', { name: 'Camera view' }), { target: { value: 'mina' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Expand world' }));
+  expect(screen.getByRole('button', { name: 'Show sidebar' }).getAttribute('aria-pressed')).toBe('true');
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 0');
+  fireEvent.click(screen.getByRole('button', { name: 'Show sidebar' }));
+  expect(screen.getByText('0 completed arrivals')).toBeTruthy();
 });
 
 test('population sidebar invites a real visitor and supports cancelling placement', () => {

@@ -3,44 +3,64 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { WorldState } from '../simulation';
 import { Point, walkingHeight, bridgeZ } from '../population';
-import { farmPosition, housePosition, riverX, terrainHeight } from '../landscape';
+import { farmPosition, housePosition, riverX, riverBed, terrainHeight } from '../landscape';
 import { createTerrainMesh, updateTerrainColors } from './terrain';
 import { createWaterMesh, updateRiverSurface } from './water';
-import { createVegetation, grassGeometry, updateVegetation, VegetationRenderEntry } from './vegetation';
+import { createVegetation, grassGeometry, updateVegetation, VegetationRenderEntry, animateVegetation } from './vegetation';
+import { createLandmarks, updateLandmarks, updateWalkedPaths, LandmarkEntries } from './exploration';
+import { trailFootprint } from '../trails';
+import { developmentOf } from '../development';
+import { drawDevelopment } from './development';
 
 const material = (color: string) => new THREE.MeshStandardMaterial({ color, roughness: 0.95 });
 interface SceneState {
   root: THREE.Group; people: THREE.Group; bakery: THREE.Group; debug: THREE.Group; terrain: THREE.Mesh; water: THREE.Mesh; crops: THREE.Group;
   vegetation: VegetationRenderEntry[];
   camera: THREE.PerspectiveCamera; controls: OrbitControls;
+  walkedPaths: THREE.Mesh; landmarks: LandmarkEntries;
+  infrastructure: THREE.Group; bridgePlanks: THREE.Mesh[];
 }
+export type CameraView = 'overview' | 'su' | 'mina' | 'east' | 'ridge';
 function dispose(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
   root.traverse(object => { if (object instanceof THREE.Line) { geometries.add(object.geometry); materials.add(object.material as THREE.Material); } if (object instanceof THREE.Sprite) { object.material.map?.dispose(); materials.add(object.material); } if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => materials.add(m)); } });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
 }
-export default function FarmView({ world, selected, onSelect, wireframe = false, showTarget = false, resetKey = 0, onPlace }: { world: WorldState; selected: number; onSelect: (id: number) => void; wireframe?: boolean; showTarget?: boolean; resetKey?: number; onPlace?: (point: Point) => void }) {
+export default function FarmView({ world, selected, onSelect, wireframe = false, showTarget = false, showSoil = false, showTrails = true, cameraView = 'overview', resetKey = 0, onPlace }: { world: WorldState; selected: number; onSelect: (id: number) => void; wireframe?: boolean; showTarget?: boolean; showSoil?: boolean; showTrails?: boolean; cameraView?: CameraView; resetKey?: number; onPlace?: (point: Point) => void }) {
   const host = useRef<HTMLDivElement>(null), view = useRef<SceneState | null>(null);
   const selectRef = useRef(onSelect); selectRef.current = onSelect;
   const placementRef = useRef({ active: world.population.placementMode, onPlace }); placementRef.current = { active: world.population.placementMode, onPlace };
   const settlement = world.population.settlement;
   const [error, setError] = useState(false);
   const landscape = world.landscape;
+  const worldRef = useRef(world); worldRef.current = world;
+  const cameraViewRef = useRef(cameraView); cameraViewRef.current = cameraView;
   useEffect(() => {
     const container = host.current!; let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch { setError(true); return; }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.domElement.setAttribute('aria-label', 'Living valley: drag to orbit, scroll to zoom, right-drag to pan, click farm plots to select'); container.appendChild(renderer.domElement);
-    const scene = new THREE.Scene(); scene.background = new THREE.Color('#10191d'); scene.fog = new THREE.Fog('#10191d', 48, 105);
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#10191d'); scene.fog = new THREE.Fog('#10191d', landscape.expanded ? 75 : 48, landscape.expanded ? 150 : 105);
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200); camera.position.set(32, 31, 40);
-    const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.target.set(-2, 1, 0); controls.minDistance = 8; controls.maxDistance = 80; controls.maxPolarAngle = Math.PI * 0.48; controls.update();
+    const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.target.set(-2, 1, 0); controls.minDistance = 8; controls.maxDistance = 110; controls.maxPolarAngle = Math.PI * 0.48; controls.update();
     scene.add(new THREE.HemisphereLight(0xe3fff9, 0x34464b, 1.7));
     const light = new THREE.DirectionalLight(0xffefd3, 2.4); light.position.set(-18, 30, 12); light.castShadow = true; light.shadow.mapSize.set(2048, 2048); Object.assign(light.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, far: 90 }); light.shadow.bias = -0.001; scene.add(light);
     const root = new THREE.Group(); scene.add(root);
+    // Deterministic display particles; they never write simulation state.
+    const rainPositions = new Float32Array(700 * 3);
+    for (let i = 0; i < 700; i++) { rainPositions[i * 3] = ((i * 17.37) % 40) - 20; rainPositions[i * 3 + 1] = (i * 0.73) % 18; rainPositions[i * 3 + 2] = ((i * 11.71) % 40) - 20; }
+    const rainGeometry = new THREE.BufferGeometry(); rainGeometry.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
+    const rain = new THREE.Points(rainGeometry, new THREE.PointsMaterial({ color: '#b9dae6', size: 0.09, transparent: true, opacity: 0.65 })); root.add(rain);
+    const flowGeometry = new THREE.BufferGeometry(), flowPositions = new Float32Array(100 * 3); flowGeometry.setAttribute('position', new THREE.BufferAttribute(flowPositions, 3));
+    const flow = new THREE.Points(flowGeometry, new THREE.PointsMaterial({ color: '#c9e8de', size: 0.12, transparent: true, opacity: 0.7 })); root.add(flow);
     const addMesh = (g: THREE.BufferGeometry, m: THREE.Material, x = 0, y = 0, z = 0) => { const mesh = new THREE.Mesh(g, m); mesh.position.set(x, y, z); mesh.castShadow = true; mesh.receiveShadow = true; root.add(mesh); return mesh; };
-    const terrain = createTerrainMesh(); root.add(terrain);
+    const terrain = createTerrainMesh(landscape.expanded); root.add(terrain);
+    const walkedPaths = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, side: THREE.DoubleSide }));
+    walkedPaths.receiveShadow = true; root.add(walkedPaths);
+    const landmarks = createLandmarks(root, landscape.expanded);
     const water = createWaterMesh(); root.add(water);
     const crops = new THREE.Group(), people = new THREE.Group(), bakery = new THREE.Group(), debug = new THREE.Group(); root.add(crops, people, bakery, debug);
+    const infrastructure = new THREE.Group(); root.add(infrastructure);
     // Paths follow terrain, excluding plants during world generation.
     const pathMaterial = material('#9b9075');
     const path = (ax: number, az: number, bx: number, bz: number) => {
@@ -50,8 +70,9 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     };
     path(-5, 1, -5, 9.5); path(-10, 9.5, riverX(9.5) - 5, 9.5); path(riverX(9.5) + 5, 9.5, 19.5, 9.5);
     const bridgeWood = material('#7d715b');
+    const bridgePlanks: THREE.Mesh[] = [];
     for (let x = riverX(bridgeZ) - 5; x < riverX(bridgeZ) + 5; x += 0.35) {
-      addMesh(new THREE.BoxGeometry(0.33, 0.16, 1.4), bridgeWood, x, walkingHeight({ x, z: bridgeZ }) - 0.08, bridgeZ);
+      bridgePlanks.push(addMesh(new THREE.BoxGeometry(0.33, 0.16, 1.4), bridgeWood, x, walkingHeight({ x, z: bridgeZ }) - 0.08, bridgeZ));
     }
     // Farmhouse: foundation, plaster walls, pitched roof, rafters, chimney, windows, porch.
     const hx = housePosition.x, hz = housePosition.z, hy = terrainHeight(hx, hz);
@@ -66,31 +87,65 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     addMesh(new THREE.BoxGeometry(3.6, 0.12, 0.9), wood, hx, hy + 0.3, hz + 1.9);
     for (const side of [-1, 1]) addMesh(new THREE.CylinderGeometry(0.065, 0.065, 1.9, 6), wood, hx + side * 1.65, hy + 1.25, hz + 2.2);
     const vegetation = createVegetation(landscape, root);
-    view.current = { root, terrain, water, crops, people, bakery, debug, vegetation, camera, controls };
+    view.current = { root, terrain, water, crops, people, bakery, debug, vegetation, camera, controls, walkedPaths, landmarks, infrastructure, bridgePlanks };
     const resize = () => { const r = container.getBoundingClientRect(); renderer.setSize(r.width, r.height); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); };
     const observer = new ResizeObserver(resize); observer.observe(container); resize();
     const raycaster = new THREE.Raycaster(); let down = { x: 0, y: 0 };
     const pointerDown = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY }; };
     const pointerUp = (e: PointerEvent) => { if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return; const r = renderer.domElement.getBoundingClientRect(); raycaster.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), camera); if (placementRef.current.active) { const ground = raycaster.intersectObject(terrain)[0]; if (ground) placementRef.current.onPlace?.({ x: ground.point.x, z: ground.point.z }); return; } const hit = raycaster.intersectObjects(crops.children, true)[0]; if (hit && typeof hit.object.userData.plotId === 'number') selectRef.current(hit.object.userData.plotId); };
     renderer.domElement.addEventListener('pointerdown', pointerDown); renderer.domElement.addEventListener('pointerup', pointerUp);
-    renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
-    return () => { observer.disconnect(); renderer.setAnimationLoop(null); controls.dispose(); renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointerup', pointerUp); dispose(root); renderer.dispose(); container.removeChild(renderer.domElement); view.current = null; };
+    let previousTime = 0, visualTime = 0;
+    renderer.setAnimationLoop((time: number) => {
+      const dt = previousTime ? Math.min(0.1, (time - previousTime) / 1000) : 0; previousTime = time; visualTime += dt;
+      const current = worldRef.current, wet = Math.min(1, (current.weather?.rainfallMm ?? 0) / 20);
+      const wind = developmentOf(current).windKph;
+      animateVegetation(vegetation, wind, visualTime);
+      rain.visible = wet > 0; rainGeometry.setDrawRange(0, Math.ceil(700 * wet));
+      for (let i = 0; i < 700; i++) { rainPositions[i * 3 + 1] -= dt * 12; rainPositions[i * 3] += dt * wind * 0.07; if (rainPositions[i * 3] > (landscape.expanded ? 40 : 20)) rainPositions[i * 3] = -20; if (rainPositions[i * 3 + 1] < terrainHeight(rainPositions[i * 3], rainPositions[i * 3 + 2])) rainPositions[i * 3 + 1] = 24; }
+      rainGeometry.attributes.position.needsUpdate = true;
+      light.intensity = 2.4 - wet * 1.2;
+      for (let i = 0; i < 100; i++) { const z = 20 - ((i * 0.4 + visualTime * (0.3 + current.ecology.dischargeM3 * 0.04)) % 40); flowPositions[i * 3] = riverX(z) + Math.sin(i * 7.1) * 0.08; flowPositions[i * 3 + 1] = riverBed(z) + current.ecology.riverLevel + 0.04; flowPositions[i * 3 + 2] = z; }
+      flowGeometry.attributes.position.needsUpdate = true;
+      const follow = cameraViewRef.current === 'su' ? current.population.su : cameraViewRef.current === 'mina' ? current.population.mina : null;
+      if (follow) {
+        const target = new THREE.Vector3(follow.position.x, walkingHeight(follow.position) + 0.6, follow.position.z);
+        const delta = target.sub(controls.target).multiplyScalar(1 - Math.exp(-dt * 4));
+        camera.position.add(delta); controls.target.add(delta);
+      }
+      controls.update(); renderer.render(scene, camera);
+    });
+    return () => { observer.disconnect(); renderer.setAnimationLoop(null); controls.dispose(); renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointerup', pointerUp); rainGeometry.dispose(); (rain.material as THREE.Material).dispose(); flowGeometry.dispose(); (flow.material as THREE.Material).dispose(); dispose(root); renderer.dispose(); container.removeChild(renderer.domElement); view.current = null; };
   }, [landscape]);
   useEffect(() => {
     const state = view.current; if (!state) return;
-    updateTerrainColors(state.terrain, world.ecology, world.landscape);
+    updateTerrainColors(state.terrain, world.ecology, world.landscape, showSoil);
     updateRiverSurface(state.water, world.ecology.riverLevel);
-    updateVegetation(state.vegetation, world.ecology, settlement);
     dispose(state.crops); state.crops.clear();
     world.plots.forEach(plot => {
-      const p = farmPosition(plot.id), height = terrainHeight(p.x, p.z), moisture = plot.waterMm / world.parameters.soilCapacityMm;
+      const p = farmPosition(plot.id), height = terrainHeight(p.x, p.z), moisture = Math.min(1, plot.waterMm / world.parameters.soilCapacityMm);
       const soil = material('#88704f'); soil.color.lerp(new THREE.Color('#3e3427'), moisture); if (plot.id === selected) soil.emissive.set('#12312d');
       const bed = new THREE.Mesh(new THREE.BoxGeometry(1.85, 0.1, 1.85), soil); bed.position.set(p.x, height + 0.03, p.z); bed.userData.plotId = plot.id; bed.receiveShadow = true; state.crops.add(bed);
       if (!plot.crop) return;
-      const leaf = grassGeometry(), leafMat = material(plot.crop.health > 0 ? '#547948' : '#80704b'); leafMat.side = THREE.DoubleSide;
+      const leaf = grassGeometry(), leafMat = material('#9c794b'); leafMat.color.lerp(new THREE.Color('#547948'), plot.crop.health); leafMat.side = THREE.DoubleSide;
       for (let n = 0; n < 9; n++) { const x = p.x + (n % 3 - 1) * 0.48, z = p.z + (Math.floor(n / 3) - 1) * 0.48; const mesh = new THREE.Mesh(leaf, leafMat); mesh.position.set(x, height + 0.09, z); mesh.scale.setScalar(0.4 + plot.crop.growth * 1.3); mesh.rotation.y = n * 2.4; mesh.userData.plotId = plot.id; mesh.castShadow = true; state.crops.add(mesh); if (plot.crop.growth >= 1 && plot.crop.health > 0) { const fruit = new THREE.Mesh(new THREE.SphereGeometry(0.065, 7, 5), material('#a34e42')); fruit.position.set(x + 0.08, height + 0.22, z); fruit.userData.plotId = plot.id; state.crops.add(fruit); } }
     });
-  }, [world.ecology, world.plots, world.parameters, world.landscape, selected, settlement]);
+  }, [world.ecology, world.plots, world.parameters, world.landscape, selected, settlement, showSoil]);
+  useEffect(() => {
+    const state = view.current; if (!state) return;
+    updateWalkedPaths(state.walkedPaths, world.population.trails ?? {});
+    updateVegetation(state.vegetation, world.ecology, settlement, trailFootprint(world.population.trails ?? {}), world.development);
+  }, [world.population.trails, world.ecology, settlement, landscape, world.development]);
+  useEffect(() => {
+    const state = view.current; if (!state) return;
+    dispose(state.infrastructure); state.infrastructure.clear(); drawDevelopment(state.infrastructure, worldRef.current);
+    const integrity = developmentOf(worldRef.current).bridgeIntegrity;
+    state.bridgePlanks.forEach((plank, i) => { plank.visible = integrity >= 0.55 || i % 5 >= 2; plank.rotation.z = integrity < 0.9 ? (i % 3 - 1) * (1 - integrity) * 0.18 : 0; });
+  }, [world.development, world.ecology.riverLevel, landscape]);
+  useEffect(() => { if (view.current) view.current.walkedPaths.visible = showTrails; }, [showTrails, landscape]);
+  useEffect(() => {
+    const state = view.current; if (!state) return;
+    updateLandmarks(state.landmarks, state.landmarks.map(e => !!world.population.su.placeMemories?.[e.place.id]), state.landmarks.map(e => !!world.population.mina?.placeMemories?.[e.place.id]));
+  }, [world.population.su.placeMemories, world.population.mina?.placeMemories, landscape]);
   useEffect(() => {
     const state = view.current; if (!state) return;
     const people = [world.population.su, ...(world.population.mina ? [world.population.mina] : [])];
@@ -134,6 +189,16 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     add(new THREE.BoxGeometry(2.2, 0.15, 0.75), '#8c7b5e', 0, 0.35, 1.7);
   }, [settlement, landscape]);
   useEffect(() => { if (view.current) (view.current.terrain.material as THREE.MeshStandardMaterial).wireframe = wireframe; }, [wireframe, landscape]);
-  useEffect(() => { if (view.current) { view.current.camera.position.set(32, 31, 40); view.current.controls.target.set(-2, 1, 0); view.current.controls.update(); } }, [resetKey]);
+  useEffect(() => { if (view.current) { const expanded = worldRef.current.landscape.expanded; view.current.camera.position.set(expanded ? 52 : 32, expanded ? 42 : 31, expanded ? 52 : 40); view.current.controls.target.set(expanded ? 8 : -2, expanded ? 3 : 1, 0); view.current.controls.update(); } }, [resetKey]);
+  useEffect(() => {
+    const state = view.current; if (!state) return;
+    const person = cameraView === 'su' ? worldRef.current.population.su : cameraView === 'mina' ? worldRef.current.population.mina : null;
+    if (person) { const { x, z } = person.position; state.controls.target.set(x, walkingHeight(person.position) + 0.6, z); state.camera.position.copy(state.controls.target).add(new THREE.Vector3(10, 10, 13)); }
+    else if (cameraView === 'ridge') { state.controls.target.set(27, 7, 6); state.camera.position.set(46, 31, 35); }
+    else if (cameraView === 'east') { state.controls.target.set(12, 2, 5); state.camera.position.set(30, 26, 32); }
+    else if (landscape.expanded) { state.controls.target.set(8, 3, 0); state.camera.position.set(52, 42, 52); }
+    else { state.controls.target.set(-2, 1, 0); state.camera.position.set(32, 31, 40); }
+    state.controls.update();
+  }, [cameraView, landscape]);
   return <div className="noise-viewport" style={{ cursor: world.population.placementMode ? 'crosshair' : undefined }} ref={host}>{error && <p className="noise-webgl-error">WebGL is unavailable. World-state diagnostics and daily controls remain available.</p>}</div>;
 }

@@ -1,11 +1,16 @@
 import { Dispatch, SetStateAction, useEffect, useRef, useState } from 'react';
-import FarmView from './rendering/FarmView';
-import { actOnPlot, advanceDay, advanceDays, createWorld, cropStatus, defaultParameters, expectedYield, Parameters, WorldState, validateParameters } from './simulation';
+import FarmView, { CameraView } from './rendering/FarmView';
+import { actOnPlot, advanceDay, advanceDays, createWorld, cropStatus, defaultParameters, expectedYield, Parameters, WorldState, validateParameters, updateEcologyParameters } from './simulation';
 import '../../components/NoiseWorkspace.css';
 import Slider from '../../components/LabSlider';
 import './village.css';
-import { arrivalEligibility, cancelInvitation, inspectPlacement, inviteMina, movePopulation, Point, populationRules, recentHarvest, residentCount, settleMina, VillagerState } from './population';
+import { arrivalEligibility, cancelInvitation, inspectPlacement, inviteMina, movePopulation, Point, populationRules, recentHarvest, residentCount, settleMina, VillagerState, hasUnfinishedRoutine } from './population';
 import { Goal, goalNames, goals } from './behavior';
+import PlaceMemoryPanel from './PlaceMemoryPanel';
+import ExplorationPanel from './ExplorationPanel';
+import { placeNames } from './places';
+import DevelopmentPanel from './DevelopmentPanel';
+import { expandValley, requestShop, tuneStorm, developmentOf } from './development';
 
 const fields: Array<[keyof Parameters, string, number, number, number]> = [
   ['seed', 'Weather seed', 0, 4294967295, 1], ['rainChance', 'Spring rain probability', 0, 1, 0.05],
@@ -16,8 +21,8 @@ const fields: Array<[keyof Parameters, string, number, number, number]> = [
   ['stressDamage', 'Daily stress damage', 0, 1, 0.01], ['recovery', 'Daily health recovery', 0, 1, 0.005], ['fertility', 'Soil fertility', 0, 1, 0.05],
 ];
 const percent = (n: number | null) => n === null ? '—' : `${(n * 100).toFixed(1)}%`;
-const targetNames = { home: 'Home', bakery: 'Bakery', farm: 'Su’s farm gate', river: 'River bank', path: 'Village path' };
-const shortGoals: Record<Goal, string> = { REST: 'Rest', WORK: 'Work', VISIT_FARM: 'Farm', VISIT_RIVER: 'River', WALK: 'Walk', RETURN_HOME: 'Home' };
+const targetNames = placeNames;
+const shortGoals: Record<Goal, string> = { REST: 'Rest', WORK: 'Work', VISIT_FARM: 'Farm', VISIT_RIVER: 'River', WALK: 'Walk', RETURN_HOME: 'Home', EXPLORE: 'Explore', SHOP: 'Shop' };
 // Diagnostic readout of the decision Mina is currently walking: needs and weights at the moment she chose.
 function Behavior({ mina }: { mina: VillagerState }) {
   const a = mina.activity, weights = a?.weights, total = weights ? goals.reduce((sum, g) => sum + weights[g], 0) : 0;
@@ -35,6 +40,11 @@ export default function VillageWorkspace({ world: sharedWorld, setWorld: sharedS
   const [remaining, setRemaining] = useState(0);
   const [wireframe, setWireframe] = useState(false);
   const [showTarget, setShowTarget] = useState(false);
+  const [showSoil, setShowSoil] = useState(false);
+  const [expandedWorld, setExpandedWorld] = useState(false);
+  const [showTrails, setShowTrails] = useState(true);
+  const [cameraView, setCameraView] = useState<CameraView>('overview');
+  const [speed, setSpeed] = useState(4);
   const [resetKey, setResetKey] = useState(0);
   const [recordsOpen, setRecordsOpen] = useState(false);
   const [error, setError] = useState('');
@@ -43,11 +53,12 @@ export default function VillageWorkspace({ world: sharedWorld, setWorld: sharedS
   const mina = world.population.mina;
   const moving = [world.population.su, ...(mina ? [mina] : [])].some(p => p.route.length || p.itinerary.length || (p.dwellSeconds ?? 0) > 0);
   const arrivalBlocked = mina?.status === 'arriving' || world.population.placementMode;
+  const residentWalking = [world.population.su, ...(mina?.status === 'resident' ? [mina] : [])].some(hasUnfinishedRoutine);
   useEffect(() => {
     if (!moving) return;
-    const timer = window.setInterval(() => setWorld(w => movePopulation(w, 0.1)), 100);
+    const timer = window.setInterval(() => setWorld(w => movePopulation(w, 0.1 * speed)), 100);
     return () => window.clearInterval(timer);
-  }, [moving, setWorld]);
+  }, [moving, setWorld, speed]);
   useEffect(() => { if (arrivalBlocked) { setRemaining(0); setRecordsOpen(false); } }, [arrivalBlocked]);
   const place = (point: Point) => {
     const checked = inspectPlacement(world, point);
@@ -57,13 +68,13 @@ export default function VillageWorkspace({ world: sharedWorld, setWorld: sharedS
   useEffect(() => {
     if (!running) return;
     const timer = window.setInterval(() => {
-      const person = worldRef.current.population.mina;
-      if (person?.status === 'resident' && (person.route.length || person.itinerary.length || (person.dwellSeconds ?? 0) > 0)) return;
-      setWorld(w => advanceDay(w)); setRemaining(n => Math.max(0, n - 1));
+      const current = worldRef.current, person = current.population.mina;
+      if ([current.population.su, ...(person?.status === 'resident' ? [person] : [])].some(hasUnfinishedRoutine)) return;
+      const next = advanceDay(current); worldRef.current = next;
+      setWorld(next); setRemaining(n => Math.max(0, n - 1));
     }, 500);
     return () => window.clearInterval(timer);
   }, [running, setWorld]);
-  const plot = world.plots[selected], crop = plot.crop;
   const latest = world.history[world.history.length - 1];
   const reset = (p: Parameters) => {
     const message = validateParameters(p); if (message) { setError(message); return; }
@@ -78,24 +89,64 @@ export default function VillageWorkspace({ world: sharedWorld, setWorld: sharedS
   const average = (key: 'soilMoisture' | 'vegetationHealth' | 'soilFertility') => world.ecology.cells.reduce((sum, cell) => sum + cell[key], 0) / world.ecology.cells.length;
   const farmHealth = world.plots.reduce((sum, p) => sum + (p.crop?.health ?? 0), 0) / Math.max(1, world.plots.filter(p => p.crop).length);
   const harvest = world.plots.reduce((sum, p) => sum + expectedYield(p.crop, world.parameters), 0);
-  const controls = (keys: Array<keyof Parameters>) => fields.filter(([key]) => keys.includes(key)).map(([key, label, min, max, step]) => key === 'seed' ? <label key={key} className="noise-select">{label}<input aria-label={label} type="number" min={min} max={max} value={draft.seed} onChange={e => setDraft(d => ({ ...d, seed: Number(e.target.value) }))} /></label> : <Slider key={key} label={label} value={draft[key]} min={min} max={max} step={step} onChange={value => setDraft(d => ({ ...d, [key]: value }))} />);
-  return <div className="noise-app village-app"><div className="noise-layout">
+  const effects: Record<keyof Parameters, string> = {
+    seed: 'New world only · changes seeded weather and vegetation placement.',
+    rainChance: 'Next day · chance of rain; affects soil, runoff and outdoor activity.',
+    rainMaxMm: 'Next rainy day · rain amount; affects saturation and river inflow.',
+    temperatureC: 'Next day · seasonal baseline; affects evaporation, crops and walks.',
+    soilCapacityMm: 'Next day · soil storage limit; excess water becomes runoff.',
+    evaporationMm: 'Next day · water lost from soil; affects drought stress.',
+    drainageRate: 'Next day · drainage to river; affects wet soil and river storage.',
+    fertility: 'Next day · crop growth and vegetation suitability. Potential harvest estimate updates immediately.',
+    uptakeMm: 'Next day · plant water demand; affects remaining soil water.',
+    idealGrowingDays: 'Next day · growth speed under suitable conditions.',
+    baseYield: 'Immediately · potential harvest estimate; does not grow crops.',
+    stressDamage: 'Next day · crop health lost under unsuitable conditions.',
+    recovery: 'Next day · crop health restored under suitable conditions.',
+  };
+  const controls = (keys: Array<keyof Parameters>) => fields.filter(([key]) => keys.includes(key)).map(([key, label, min, max, step]) => <div className="ecology-control" key={key}>{key === 'seed' ? <label className="noise-select">{label}<input aria-label={label} type="number" min={min} max={max} value={draft.seed} onChange={e => setDraft(d => ({ ...d, seed: Number(e.target.value) }))} /></label> : <Slider label={label} value={world.parameters[key]} min={min} max={max} step={step} onChange={value => setWorld(w => updateEcologyParameters(w, { [key]: value }))} />}<p className="control-effect">{effects[key]}</p></div>);
+  const startExploration = () => {
+    const initial = createWorld({ ...world.parameters, rainChance: 0, temperatureC: 18 });
+    const visitor: VillagerState = { ...initial.population.su, id: 'mina', name: 'Mina', profession: 'baker', status: 'visiting', homePosition: null };
+    const prepared = settleMina(inviteMina({ ...initial, population: { ...initial.population, mina: visitor } }), { x: -4, z: 4 });
+    setWorld(prepared); worldRef.current = prepared; setRemaining(30); setSpeed(8); setRecordsOpen(false); setPlacementError(''); setShowTrails(true); setCameraView('overview');
+  };
+  return <div className={`noise-app village-app${expandedWorld ? ' world-expanded' : ''}`}><div className="noise-layout">
     <aside className="noise-controls" aria-label="Living village controls">
       <div className="noise-intro"><span className="noise-eyebrow">■ FIELD / LAB</span><h1>Living village<span>03</span></h1><p>CLIMATE → ECOLOGY → GROWTH</p></div>
-      <section><h2><span>01</span> Time & climate</h2><p className="noise-hint">A day advances four six-hour intervals. Same seed and actions, same experiment.</p>
-        <div className="village-actions"><button disabled={running || arrivalBlocked} onClick={() => setWorld(w => advanceDay(w))}>Advance 1 day</button><button disabled={running || arrivalBlocked} onClick={() => { setWorld(w => advanceDays(w, 30)); setRecordsOpen(true); }}>Advance 30 days</button><button className="simulation-start" disabled={arrivalBlocked} onClick={() => setRemaining(running ? 0 : 30)}>{running ? 'Pause playback' : 'Play 30 days'}</button><button onClick={() => reset(world.parameters)}>Reset simulation</button></div>
+      <DevelopmentPanel world={world} onExpand={() => { setWorld(w => expandValley(w)); setCameraView('ridge'); }} onBuild={() => setWorld(w => requestShop(w))} onTune={patch => setWorld(w => tuneStorm(w, patch))} onView={() => { setCameraView('ridge'); setExpandedWorld(true); }} />
+      <ExplorationPanel world={world} onStart={startExploration} onDrive={value => setWorld(w => ({ ...w, population: { ...w.population, explorationDrive: value } }))} onView={() => setCameraView('east')} />
+      <PlaceMemoryPanel mina={mina} onStart={() => {
+        const initial = createWorld(world.parameters);
+        const visitor: VillagerState = { ...initial.population.su, id: 'mina', name: 'Mina', profession: 'baker', status: 'visiting', homePosition: null };
+        const prepared = { ...initial, population: { ...initial.population, mina: visitor } };
+        setRemaining(0); setRecordsOpen(false); setPlacementError('');
+        setWorld(settleMina(inviteMina(prepared), { x: -4, z: 4 }));
+      }} onToggle={() => setWorld(w => !w.population.mina ? w : ({ ...w, population: { ...w.population, mina: { ...w.population.mina, memoryFeedback: w.population.mina.memoryFeedback === false } } }))} />
+      <section><h2><span>01</span> Time & climate</h2><p className="noise-hint">A day advances four six-hour intervals. Same seed and actions, same experiment. For place memories, use Play 30 days: each routine finishes before the next day begins.</p>
+        <div className="village-actions"><button disabled={running || arrivalBlocked || residentWalking} onClick={() => setWorld(w => advanceDay(w))}>Advance 1 day</button><button title="Instant ecology advance is unavailable with settled Mina, an expanded region or a queued storm; use playback to finish actual walks and repairs." disabled={running || arrivalBlocked || mina?.status === 'resident' || world.landscape.expanded || developmentOf(world).queuedStorm} onClick={() => { setWorld(w => advanceDays(w, 30)); setRecordsOpen(true); }}>Advance 30 days</button><button className="simulation-start" disabled={arrivalBlocked} onClick={() => setRemaining(running ? 0 : 30)}>{running ? 'Pause playback' : 'Play 30 days'}</button><button onClick={() => reset(world.parameters)}>Reset simulation</button></div>
         <p className="noise-hint" role="status" aria-label="Farm simulation status">{running ? `Running · ${remaining} days remaining` : 'Paused'} · Day {world.day}</p>
         {controls(['seed', 'rainChance', 'rainMaxMm', 'temperatureC'])}
+        <label className="noise-select">Playback speed<select value={speed} onChange={e => setSpeed(Number(e.target.value))}><option value={1}>1× · slow observation</option><option value={4}>4× · everyday life</option><option value={8}>8× · quicker comparison</option></select></label>
+        <p className="control-effect">Immediately · speeds walks and pauses; ecological rules remain unchanged.</p>
       </section>
       <section><h2><span>02</span> Ecology</h2><p className="noise-hint">Slope and distance to the stream shape drainage, fertility, and plant suitability. Rain changes soil, river storage, and vegetation.</p>{controls(['soilCapacityMm', 'evaporationMm', 'drainageRate', 'fertility'])}
         <div className="village-mini-metrics"><span>Vegetation sites <b>{world.landscape.sites.filter(s => s.kind !== 'rock').length}</b></span><span>Soil fertility <b>{percent(average('soilFertility'))}</b></span></div>
       </section>
-      <section><h2><span>03</span> Farm</h2><label className="noise-select">Plot<select value={selected} onChange={e => setSelected(Number(e.target.value))}>{world.plots.map(p => <option key={p.id} value={p.id}>Plot {p.id + 1}</option>)}</select></label>
-        <p className="noise-hint">{cropStatus(crop)} · growth {percent(crop?.growth ?? null)} · health {percent(crop?.health ?? null)}<br />Moisture {percent(plot.waterMm / world.parameters.soilCapacityMm)} · expected yield {expectedYield(crop, world.parameters)}<br />Harvested total: {world.harvested}</p>
-        <div className="village-actions">{(['water', 'plant', 'harvest', 'clear'] as const).map(action => <button key={action} disabled={running || (action === 'plant' && !!crop) || (action === 'harvest' && cropStatus(crop) !== 'Ready') || (action === 'clear' && cropStatus(crop) !== 'Dead')} onClick={() => setWorld(w => actOnPlot(w, selected, action))}>{action === 'water' ? 'Water +10 mm' : action === 'clear' ? 'Clear dead crop' : action === 'plant' ? 'Plant strawberries' : 'Harvest'}</button>)}</div>
+      <section className="farm-ecology" aria-label="Farm ecology"><h2><span>03</span> Farm ecology</h2>
+        <p className="noise-hint">Observe the whole farm. Rain supplies water; temperature, soil and plant demand shape growth. Ecology sliders below set the rules for every crop.</p>
+        <dl className="village-population-metrics">
+          <div><dt>Average soil moisture</dt><dd>{percent(world.plots.reduce((sum, p) => sum + p.waterMm / world.parameters.soilCapacityMm, 0) / world.plots.length)}</dd></div>
+          <div><dt>Average crop growth</dt><dd>{percent(world.plots.reduce((sum, p) => sum + (p.crop?.growth ?? 0), 0) / Math.max(1, world.plots.filter(p => p.crop).length))}</dd></div>
+          <div><dt>Crop health</dt><dd>{percent(farmHealth)}</dd></div>
+          <div><dt>Mature / growing / stressed</dt><dd>{world.plots.filter(p => cropStatus(p.crop) === 'Ready').length} / {world.plots.filter(p => p.crop && p.crop.health > 0 && p.crop.growth < 1).length} / {world.plots.filter(p => p.crop && p.crop.health < 0.5).length}</dd></div>
+          <div><dt>Expected food production</dt><dd>{harvest}</dd></div>
+          <div><dt>Total harvested</dt><dd>{world.harvested}</dd></div>
+        </dl>
         <button className="noise-add" disabled={running || !world.plots.some(p => cropStatus(p.crop) === 'Ready')} onClick={() => setWorld(w => w.plots.reduce((next, p) => actOnPlot(next, p.id, 'harvest'), w))}>Harvest ripe plots</button>
+        <button className="noise-add" disabled={running || !world.plots.some(p => !p.crop || p.crop.health <= 0)} onClick={() => setWorld(w => w.plots.reduce((next, p) => !p.crop || p.crop.health <= 0 ? actOnPlot(actOnPlot(next, p.id, 'clear'), p.id, 'plant') : next, w))}>Replant empty or lost crops</button>
         {controls(['uptakeMm', 'idealGrowingDays', 'baseYield', 'stressDamage', 'recovery'])}
-        <p className="noise-hint">Expected harvest reflects current health and stress history; future conditions can change it. Harvest mature crops manually.</p>
+        <p className="noise-hint">Live rules preserve this world. Advance a day or use playback to see ecological responses. Harvest mature crops together to supply the village.</p>
       </section>
       <section aria-label="Population"><h2><span>04</span> Population <span className="noise-count">{residentCount(world)}</span></h2>
         <dl className="village-population-metrics"><div><dt>Residents</dt><dd>{residentCount(world)}</dd></div><div><dt>Visitors</dt><dd>{mina && mina.status !== 'resident' ? 1 : 0}</dd></div><div><dt>Food reserve</dt><dd>{world.population.foodReserve.toFixed(1)}</dd></div><div><dt>Recent harvest · 7 days</dt><dd>{recentHarvest(world)}</dd></div><div><dt>Food capacity</dt><dd>{Math.floor(world.population.foodReserve / (7 * populationRules.dailyFoodPerResident))} resident-weeks</dd></div><div><dt>Resident capacity</dt><dd>{populationRules.capacity}</dd></div><div><dt>Settlement status</dt><dd>{mina?.status ?? 'No visitor yet'}</dd></div></dl>
@@ -108,15 +159,17 @@ export default function VillageWorkspace({ world: sharedWorld, setWorld: sharedS
         {mina?.status === 'resident' && <Behavior mina={mina} />}
         {mina?.spatialContext && <dl className="village-population-metrics">{[['To farm', mina.spatialContext.distanceToFarm], ['To river', mina.spatialContext.distanceToRiver], ['To path', mina.spatialContext.distanceToPath], ['To Su’s house', mina.spatialContext.distanceToFarmhouse], ['Home → farm (walk)', mina.spatialContext.routeLengthToFarm], ['Home → river (walk)', mina.spatialContext.routeLengthToRiver], ['Home → path (walk)', mina.spatialContext.routeLengthToPath]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value === null ? 'no route' : `${Number(value).toFixed(1)} m`}</dd></div>)}<div><dt>Site fertility</dt><dd>{percent(mina.spatialContext.fertility)}</dd></div><div><dt>Site moisture at placement</dt><dd>{percent(mina.spatialContext.soilMoisture)}</dd></div></dl>}
       </section>
-      {error && <p role="alert">{error}</p>}<button className="noise-add" onClick={() => reset(draft)}>Apply parameters & reset</button><button className="noise-reset" onClick={() => { setDraft({ ...defaultParameters }); reset(defaultParameters); }}>Restore defaults</button><p className="noise-hint">Parameter edits apply on reset. Export observations before leaving this workspace; state is held in memory and survives tab switches, but not a page refresh.</p>
+      {error && <p role="alert">{error}</p>}<button className="noise-add" onClick={() => reset({ ...world.parameters, seed: draft.seed })}>Generate new world with seed</button><button className="noise-reset" onClick={() => { setDraft({ ...defaultParameters }); reset(defaultParameters); }}>Restore defaults & new world</button><p className="noise-hint">Climate and ecology edits preserve residents, memories and history. Only new-world actions reset the run. State survives tab switches, but not a page refresh.</p>
     </aside>
     <main className="noise-main" aria-label="Living valley viewport"><div className="noise-main-title"><span className="noise-eyebrow">LIVING SYSTEM / PERSPECTIVE</span><h2>Su’s living valley.</h2><p>Weather shapes what grows here.</p></div>
-      <div className="noise-scene"><div className="noise-scene-toolbar"><div><button aria-pressed={wireframe} className={wireframe ? 'selected' : ''} onClick={() => setWireframe(v => !v)}>Wireframe</button><button aria-pressed={showTarget} className={showTarget ? 'selected' : ''} disabled={mina?.status !== 'resident'} onClick={() => setShowTarget(v => !v)}>Behavior target</button><button onClick={() => setResetKey(k => k + 1)}>Reset view</button><button aria-expanded={recordsOpen} onClick={() => setRecordsOpen(v => !v)}>Daily records</button></div></div>
-        <FarmView world={world} selected={selected} onSelect={setSelected} wireframe={wireframe} showTarget={showTarget} resetKey={resetKey} onPlace={place} />
-        <div className="noise-scene-footer"><span>Drag to orbit · Scroll to zoom · Right-drag to pan · Click a farm plot</span><span>40 × 40 m · 6-hour steps</span></div>
+      <div className="noise-scene"><div className="noise-scene-toolbar"><div><button aria-pressed={expandedWorld} onClick={() => setExpandedWorld(v => !v)}>{expandedWorld ? 'Show sidebar' : 'Expand world'}</button><label className="camera-select">Camera<select aria-label="Camera view" value={cameraView} onChange={e => setCameraView(e.target.value as CameraView)}><option value="overview">Whole valley</option><option value="east">East bank</option><option value="ridge" disabled={!world.landscape.expanded}>Ridge & shop</option><option value="su">Follow Su</option><option value="mina" disabled={!mina}>Follow Mina</option></select></label><button aria-pressed={showTrails} className={showTrails ? 'selected' : ''} onClick={() => setShowTrails(v => !v)}>Walked paths</button><button aria-pressed={wireframe} className={wireframe ? 'selected' : ''} onClick={() => setWireframe(v => !v)}>Wireframe</button><button aria-pressed={showTarget} className={showTarget ? 'selected' : ''} disabled={mina?.status !== 'resident'} onClick={() => setShowTarget(v => !v)}>Behavior target</button><button onClick={() => { setCameraView('overview'); setResetKey(k => k + 1); }}>Reset view</button><button aria-expanded={recordsOpen} onClick={() => setRecordsOpen(v => !v)}>Daily records</button></div></div>
+        <FarmView world={world} selected={selected} onSelect={setSelected} wireframe={wireframe} showTarget={showTarget} showSoil={showSoil} showTrails={showTrails} cameraView={cameraView} resetKey={resetKey} onPlace={place} />
+        <div className="noise-scene-footer"><span>Drag to orbit · Scroll to zoom · Right-drag to pan</span><span>{world.landscape.expanded ? '60' : '40'} × 40 m · 6-hour steps</span></div>
       </div>
+      <section className="ecology-story" aria-label="Ecological cause and effect"><header><h2>Rain → soil → river & farm → daily life</h2><button aria-pressed={showSoil} onClick={() => setShowSoil(v => !v)}>{showSoil ? 'Natural colors' : 'Show soil moisture'}</button></header><p>Day {world.day} · {world.weather?.kind ?? 'Awaiting first day'} · {world.weather?.rainfallMm.toFixed(1) ?? '0.0'} mm rain · {world.weather?.temperatureC.toFixed(1) ?? '—'} °C</p><div className="ecology-chain"><article><b>Soil</b><strong>{percent(average('soilMoisture'))}</strong><span>{showSoil ? 'Ochre = dry · blue = wet' : 'Wet ground darkens; dry ground lightens.'}</span></article><article><b>River</b><strong>{world.ecology.riverLevel.toFixed(2)} m</strong><span>{world.ecology.runoffM3.toFixed(2)} m³ inflow · {world.ecology.dischargeM3.toFixed(2)} m³ discharge. Width follows water level.</span></article><article><b>Farm</b><strong>{percent(farmHealth)} health</strong><span>Leaves grow with crops and brown as health falls. Red fruit marks maturity.</span></article><article><b>Residents</b><strong>Su · {world.population.su.currentGoal}</strong><span>Mina · {mina?.currentGoal ?? 'not settled'}. Rain reduces outdoor choice weights; high water discourages river visits.</span></article></div><p className="ecology-explanation">{world.today.filter(e => e.type === 'soil' || e.type === 'river' || e.type === 'crop').map(e => e.description).join(' ') || 'Adjust climate, then advance a day. Rain is a probability: a higher chance does not change weather already recorded today.'}</p></section>
       {mina && mina.status !== 'resident' && <div className="village-visitor-notice" role="status" aria-label="Visitor status"><span>{world.population.placementMode ? 'Click terrain to place Mina’s home / bakery.' : mina.status === 'arriving' ? 'Mina is arriving from the eastern path.' : 'Mina, a baker, is visiting Su’s farmhouse.'}</span>{mina.status === 'visiting' && <button onClick={() => { setWorld(w => inviteMina(w)); setPlacementError(''); }}>Invite Mina</button>}</div>}
-      <details className="noise-map-dock village-diagnostics" open><summary>WORLD STATE <span>− / +</span></summary><div className="noise-map-content">
+      <div className="world-playbar"><span>DAY {world.day} · {running ? 'Living world' : 'Daily clock paused'}{residentWalking ? ' · walks in progress' : ''}<br />Wind {developmentOf(world).windKph.toFixed(0)} km/h · {world.landscape.expanded ? '60 × 40 m' : '40 × 40 m'}{developmentOf(world).queuedStorm ? ' · Storm queued for next day' : ''}</span><button disabled={arrivalBlocked} onClick={() => setRemaining(running ? 0 : 30)}>{running ? 'Pause day advance' : 'Run world'}</button></div>
+      <details className="noise-map-dock village-diagnostics"><summary>WORLD STATE <span>− / +</span></summary><div className="noise-map-content">
         <dl>{[['Season / Day', `${world.season} / ${world.day}`], ['Weather', latest?.kind ?? 'Awaiting first day'], ['Temperature', latest ? `${latest.temperatureC.toFixed(1)} °C` : '—'], ['Rainfall today', latest ? `${latest.rainfallMm.toFixed(1)} mm` : '—'], ['Soil moisture', percent(average('soilMoisture'))], ['River level', `${world.ecology.riverLevel.toFixed(2)} m above bed`], ['Vegetation health', percent(average('vegetationHealth'))], ['Farm health', percent(farmHealth)], ['Expected harvest', `${harvest} strawberries`], ['Residents / visitors', `${residentCount(world)} / ${mina && mina.status !== 'resident' ? 1 : 0}`], ...(mina?.activity ? [['Mina', goalNames[mina.activity.goal]]] : []), ['Food reserve', world.population.foodReserve.toFixed(1)]].map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value}</dd></div>)}</dl>
         <div className="village-today"><h3>TODAY</h3>{world.today.length ? world.today.map((event, i) => <p key={i}><time>{event.time}</time><span>{event.description}</span></p>) : <p>Advance a day to observe environmental changes.</p>}<small>Interval-end observations · 24:00 = end of day</small></div>
       </div></details>

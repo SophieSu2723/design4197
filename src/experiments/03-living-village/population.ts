@@ -1,22 +1,34 @@
 import type { WorldState } from './simulation';
 import type { Activity, Goal } from './behavior';
 import { cellIndex, farmPosition, housePosition, riverBed, riverX, terrainHeight } from './landscape';
+import { easternPlaces, isMemoryPlace, isEasternPlace, placeNames, EasternPlace } from './places';
+import { expeditionOptions, explorationWeather, explorationRoll, selectExpedition, expeditionReason } from './exploration';
+import { addFootstep, recoverTrails, Trails } from './trails';
+import { bridgeOpen, developmentOf, developmentArrival, shopPosition, shopDoor, shopOpen, workDestination } from './development';
 export interface Point { x: number; z: number }
 export interface SpatialContext { distanceToFarm: number; distanceToRiver: number; distanceToPath: number; distanceToFarmhouse: number; fertility: number; soilMoisture: number; elevation: number; slope: number; routeLengthToFarm: number; routeLengthToRiver: number | null; routeLengthToPath: number | null }
 // Destinations Mina's behavior can choose. Positions are simulation data, fixed at settlement.
-export type LocationType = 'home' | 'bakery' | 'farm' | 'river' | 'path';
+export type LocationType = 'home' | 'bakery' | 'farm' | 'river' | 'path' | 'shop' | 'bridge' | EasternPlace;
 export interface VillageLocation { type: LocationType; position: Point }
+export type MemoryPlace = 'farm' | 'river' | 'path' | 'shop' | EasternPlace;
+export interface PlaceMemory { visits: number; familiarity: number; lastDay: number; firstDay?: number }
 export interface VillagerState {
   id: 'su' | 'mina'; name: string; profession: 'farmer' | 'baker'; status: 'resident' | 'arriving' | 'visiting' | 'invited';
   position: Point; homePosition: Point | null; currentGoal: string; energy: number; arrivalDay: number;
-  spatialContext: SpatialContext | null; dwellSeconds?: number; route: Point[]; itinerary: Array<{ goal: string; destination: Point; activity?: Activity }>;
+  spatialContext: SpatialContext | null; dwellSeconds?: number; route: Point[]; itinerary: Array<{ goal: string; destination: Point; activity?: Activity; target?: LocationType }>;
+  destination?: Point; destinationTarget?: LocationType; trailAnchor?: Point; lastPlace?: LocationType; navigationStamp?: string;
+  bridgeCrossings?: number; explorationReason?: string;
   // Phase 3 behavior (Mina only): social need 0–1, the decision being walked, and the last 7 days of day-part goals.
+  placeMemories?: Partial<Record<MemoryPlace, PlaceMemory>>; memoryFeedback?: boolean;
+  lastArrival?: { place: MemoryPlace; day: number };
   socialNeed?: number; activity?: Activity; recentGoals?: Array<{ day: number; goals: Goal[] }>;
 }
 export interface PopulationState {
   su: VillagerState; mina: VillagerState | null; randomState: number; lastArrivalCheck: number;
   placementMode: boolean; settlement: { position: Point; door: Point; context: SpatialContext; locations: VillageLocation[] } | null;
   foodReserve: number; harvests: Array<{ day: number; amount: number }>; lastProbability: number;
+  explorationDrive?: number; trails?: Trails;
+  discoveries?: Array<{ actor: 'su' | 'mina'; place: EasternPlace; day: number }>;
 }
 export const populationRules = { capacity: 2, reserveThreshold: 20, recentHarvestThreshold: 12, recentDays: 7, dailyFoodPerResident: 0.5, baseArrivalChance: 0.35, maxArrivalChance: 0.8, walkingSpeed: 2, buildingHalfSize: 1.35, maxSlope: 0.38 };
 export const farmGate = { x: -4, z: 1 }, suDoor = { x: housePosition.x, z: housePosition.z + 2.4 };
@@ -28,29 +40,44 @@ export function pathDistance(p: Point) {
 }
 export function walkingHeight(p: Point) { return Math.abs(p.z - bridgeZ) < 0.8 && Math.abs(p.x - riverX(bridgeZ)) < 5 ? Math.max(terrainHeight(p.x, p.z), riverBed(bridgeZ) + 1.65) : terrainHeight(p.x, p.z); }
 function slope(p: Point) { return Math.atan(Math.hypot((terrainHeight(p.x + 0.2, p.z) - terrainHeight(p.x - 0.2, p.z)) / 0.4, (terrainHeight(p.x, p.z + 0.2) - terrainHeight(p.x, p.z - 0.2)) / 0.4)); }
-export function walkable(p: Point, building: Point | null = null) {
-  if (Math.abs(p.x) > 19.5 || Math.abs(p.z) > 19.5) return false;
+export interface Navigation { expanded?: boolean; bridgeClosed?: boolean; shopBuilt?: boolean }
+const navigationStamp = (nav: Navigation) => `${!!nav.expanded}:${!!nav.bridgeClosed}:${!!nav.shopBuilt}`;
+export const navigationFor = (world: WorldState): Navigation => ({ expanded: !!world.landscape.expanded, bridgeClosed: !bridgeOpen(world), shopBuilt: developmentOf(world).shop.requested });
+export function walkable(p: Point, building: Point | null = null, nav: Navigation = {}) {
+  if (p.x < -19.5 || p.x > (nav.expanded ? 39.5 : 19.5) || Math.abs(p.z) > 19.5) return false;
   if (Math.abs(p.x - housePosition.x) < 2.25 && Math.abs(p.z - housePosition.z) < 1.9) return false;
   if (p.x > -11.1 && p.x < -4.7 && p.z > -5.1 && p.z < 1.3) return false;
   if (building && Math.abs(p.x - building.x) < 1.5 && Math.abs(p.z - building.z) < 1.5) return false;
+  if (nav.shopBuilt && Math.abs(p.x - shopPosition.x) < 1.8 && Math.abs(p.z - shopPosition.z) < 1.8) return false;
   const bridge = Math.abs(p.z - bridgeZ) < 0.8 && Math.abs(p.x - riverX(bridgeZ)) < 5;
+  if (bridge && nav.bridgeClosed) return false;
   return bridge || (terrainHeight(p.x, p.z) > riverBed(p.z) + 1.45 && slope(p) < 0.65);
 }
 // A bounded grid route avoids the river, steep ground, farm beds and buildings.
-export function routeBetween(start: Point, end: Point, building: Point | null = null): Point[] {
-  const point = (i: number) => ({ x: i % 40 - 19.5, z: Math.floor(i / 40) - 19.5 });
+// Cache keys include region, bridge closure and construction, so topology changes invalidate routes.
+const navigationGrids = new Map<string, Uint8Array>();
+export function routeBetween(start: Point, end: Point, building: Point | null = null, nav: Navigation = {}): Point[] {
+  const width = nav.expanded ? 60 : 40, size = width * 40;
+  const point = (i: number) => ({ x: i % width - 19.5, z: Math.floor(i / width) - 19.5 });
+  const key = `${building ? `${building.x},${building.z}` : 'no-building'}:${width}:${!!nav.bridgeClosed}:${!!nav.shopBuilt}`;
+  let grid = navigationGrids.get(key);
+  if (!grid) {
+    grid = Uint8Array.from({ length: size }, (_, i) => walkable(point(i), building, nav) ? 1 : 0);
+    if (navigationGrids.size >= 16) navigationGrids.delete(navigationGrids.keys().next().value!);
+    navigationGrids.set(key, grid);
+  }
   const nearest = (p: Point) => {
     let best = -1, score = Infinity;
-    for (let i = 0; i < 1600; i++) { const q = point(i), d = distance(p, q); if (d < score && walkable(q, building)) { score = d; best = i; } }
+    for (let i = 0; i < size; i++) { const q = point(i), d = distance(p, q); if (d < score && grid![i]) { score = d; best = i; } }
     return score <= 2 ? best : -1;
   };
-  if (!walkable(end, building)) return [];
+  if (!walkable(end, building, nav)) return [];
   const a = nearest(start), b = nearest(end); if (a < 0 || b < 0) return [];
-  const parents = new Int32Array(1600).fill(-2), queue = [a]; parents[a] = -1;
+  const parents = new Int32Array(size).fill(-2), queue = [a]; parents[a] = -1;
   for (let cursor = 0; cursor < queue.length && parents[b] === -2; cursor++) {
     const i = queue[cursor];
-    for (const n of [i % 40 > 0 ? i - 1 : -1, i % 40 < 39 ? i + 1 : -1, i >= 40 ? i - 40 : -1, i < 1560 ? i + 40 : -1]) {
-      if (n >= 0 && parents[n] === -2 && walkable(point(n), building)) { parents[n] = i; queue.push(n); }
+    for (const n of [i % width > 0 ? i - 1 : -1, i % width < width - 1 ? i + 1 : -1, i >= width ? i - width : -1, i < size - width ? i + width : -1]) {
+      if (n >= 0 && parents[n] === -2 && grid[n]) { parents[n] = i; queue.push(n); }
     }
   }
   if (parents[b] === -2) return [];
@@ -65,44 +92,98 @@ export function residentCount(world: WorldState) { return 1 + (world.population.
 export function arrivalEligibility(world: WorldState) {
   return !world.population.mina && world.population.foodReserve > populationRules.reserveThreshold && recentHarvest(world) > populationRules.recentHarvestThreshold && residentCount(world) < populationRules.capacity;
 }
-function withRoute(person: VillagerState, destination: Point, goal: string, building: Point | null): VillagerState { return { ...person, currentGoal: goal, route: routeBetween(person.position, destination, building) }; }
+function withRoute(person: VillagerState, destination: Point, goal: string, building: Point | null, nav: Navigation = {}): VillagerState { return { ...person, currentGoal: goal, destination, destinationTarget: undefined, activity: undefined, trailAnchor: person.position, navigationStamp: navigationStamp(nav), route: routeBetween(person.position, destination, building, nav) }; }
 export function populationDay(world: WorldState): WorldState {
   const old = world.population;
   if (old.lastArrivalCheck === world.day) return world;
-  const population = { ...old, lastArrivalCheck: world.day, foodReserve: Math.max(0, old.foodReserve - residentCount(world) * populationRules.dailyFoodPerResident), harvests: old.harvests.filter(h => world.day - h.day < populationRules.recentDays), lastProbability: 0 };
+  const population = { ...old, trails: recoverTrails(old.trails ?? {}, world.day), lastArrivalCheck: world.day, foodReserve: Math.max(0, old.foodReserve - residentCount(world) * populationRules.dailyFoodPerResident), harvests: old.harvests.filter(h => world.day - h.day < populationRules.recentDays), lastProbability: 0 };
   let result = { ...world, population };
-  population.su = withRoute(population.su, farmGate, 'Operate the farm', population.settlement?.position ?? null);
+  const raining = (world.weather?.rainfallMm ?? 0) >= 5 || developmentOf(world).windKph >= 55;
+  const nav = navigationFor(world), work = workDestination(world);
+  const options = expeditionOptions(world, population.su, farmGate);
+  const place = selectExpedition(options, explorationRoll(world.parameters.seed, world.day, 'su', 1));
+  const farmBusy = world.plots.filter(p => p.crop && p.crop.growth >= 1 && p.crop.health > 0).length >= 5;
+  const chance = Math.min(0.9, 0.65 * (population.explorationDrive ?? 1) * (farmBusy ? 0.35 : 1));
+  const exploring = !raining && explorationWeather(world).allowed && !!place && explorationRoll(world.parameters.seed, world.day, 'su') < chance;
+  population.su = { ...withRoute(population.su, raining ? suDoor : farmGate, raining ? developmentOf(world).windKph >= 55 ? 'Shelter at home from strong wind' : 'Shelter at home from rain' : 'Tend the farm', population.settlement?.position ?? null, nav), destinationTarget: raining ? 'home' : 'farm', dwellSeconds: 0,
+    explorationReason: exploring ? expeditionReason(place.id, population.su) : raining ? 'Rain keeps Su at home today.' : !explorationWeather(world).allowed ? explorationWeather(world).reason : !place ? 'No reachable eastern destination.' : farmBusy ? 'Ripe crops reduce expedition chances; Su stays local today.' : 'Today’s seeded choice keeps Su on the farm and village path.',
+    itinerary: raining ? [] : [{ goal: exploring ? `Explore · ${place.name}` : 'Rest on the village path', destination: exploring ? place.position : { x: -5, z: 8.5 }, target: exploring ? place.id : 'path' }, { goal: 'Return to farmhouse', destination: suDoor, target: 'home' }] };
+  if (!raining && work) {
+    population.su.itinerary = [{ goal: work.goal, destination: work.position, target: work.target }, { goal: 'Return to farmhouse', destination: suDoor, target: 'home' }];
+    population.su.explorationReason = `${work.goal} takes priority over exploration today. Progress requires reaching the work site.`;
+  } else if (!raining && shopOpen(world) && world.day % 3 === 0 && routeBetween(farmGate, shopDoor, population.settlement?.position ?? null, nav).length) {
+    population.su.itinerary = [{ goal: 'Visit the community shop', destination: shopDoor, target: 'shop' }, { goal: 'Return to farmhouse', destination: suDoor, target: 'home' }];
+    population.su.explorationReason = 'Su visits the shop after the farm on every third open day.';
+  }
   if (!arrivalEligibility(result)) return result;
   population.lastProbability = Math.min(populationRules.maxArrivalChance, populationRules.baseArrivalChance + (population.foodReserve - populationRules.reserveThreshold) * 0.005);
   population.randomState = (Math.imul(population.randomState, 1664525) + 1013904223) >>> 0;
   if (population.randomState / 4294967296 >= population.lastProbability) return result;
-  const route = routeBetween(easternEntry, suDoor);
+  const route = routeBetween(easternEntry, suDoor, null, nav);
   if (!route.length) return result;
   population.mina = { id: 'mina', name: 'Mina', profession: 'baker', status: 'arriving', position: { ...easternEntry }, homePosition: null, currentGoal: 'Walk to Su’s farmhouse', energy: 1, arrivalDay: world.day, spatialContext: null, route, itinerary: [] };
   return { ...result, today: [...world.today, { day: world.day, time: '24:00', type: 'population', description: 'A traveler was seen near the eastern path.' }] };
 }
 export function movePopulation(world: WorldState, seconds: number): WorldState {
+  if (!Number.isFinite(seconds) || seconds <= 0) return world;
   const building = world.population.settlement?.position ?? null;
+  let trails = world.population.trails ?? {}, discoveries = world.population.discoveries ?? [];
+  let development = developmentOf(world);
+  const arrivalEvents: WorldState['today'] = [];
+  const arrivedAtPlace = (person: VillagerState): VillagerState => {
+    const target = person.destinationTarget ?? person.activity?.target;
+    const destination = person.destination ?? person.activity?.targetPosition;
+    if (!destination || distance(person.position, destination) > 0.05 || person.status !== 'resident') return person;
+    if (person.lastPlace !== target && (target === 'shop' || target === 'bridge')) {
+      const result = developmentArrival({ ...world, development }, person, target);
+      development = result.development; person = result.actor; arrivalEvents.push(...result.events);
+    }
+    if (!isMemoryPlace(target) || person.lastPlace === target) return { ...person, lastPlace: target };
+    const old = person.placeMemories?.[target];
+    if (!old && isEasternPlace(target)) discoveries = [...discoveries, { actor: person.id, place: target, day: world.day }].slice(-20);
+    return { ...person, lastPlace: target, lastArrival: { place: target, day: world.day },
+      placeMemories: { ...person.placeMemories, [target]: { visits: (old?.visits ?? 0) + 1, familiarity: Math.min(1, (old?.familiarity ?? 0) + 0.1), firstDay: old?.firstDay ?? world.day, lastDay: world.day } } };
+  };
   const move = (person: VillagerState): VillagerState => {
+    const nav = navigationFor({ ...world, development });
+    if (person.route.length && person.navigationStamp !== undefined && person.navigationStamp !== navigationStamp(nav)) {
+      const destination = person.destination ?? person.route[person.route.length - 1];
+      const rerouted = withRoute(person, destination, person.currentGoal, building, nav);
+      return { ...rerouted, destinationTarget: person.destinationTarget, activity: person.activity, currentGoal: rerouted.route.length ? person.currentGoal : `Route interrupted · ${person.currentGoal}` };
+    }
     if (!person.route.length) {
       if ((person.dwellSeconds ?? 0) > 0) return { ...person, dwellSeconds: Math.max(0, person.dwellSeconds! - seconds) };
       if (!person.itinerary.length) return person;
       const [next, ...rest] = person.itinerary;
-      return { ...withRoute(person, next.destination, next.goal, building), itinerary: rest, ...(next.activity ? { activity: next.activity } : {}) };
+      const alreadyThere = distance(person.position, next.destination) < 0.05;
+      const routed = { ...withRoute(person, next.destination, next.goal, building, navigationFor({ ...world, development })), itinerary: rest, destinationTarget: next.target ?? next.activity?.target, activity: next.activity };
+      if (alreadyThere) return arrivedAtPlace({ ...routed, route: [], dwellSeconds: 4 });
+      if (!routed.route.length) return { ...routed, currentGoal: `No walkable route · ${next.goal}`, dwellSeconds: 4 };
+      return routed;
     }
     let budget = Math.max(0, Math.min(seconds, 1)) * populationRules.walkingSpeed, position = { ...person.position }, route = [...person.route];
+    let anchor = person.trailAnchor ?? person.position, bridgeCrossings = person.bridgeCrossings ?? 0;
     while (budget > 0 && route.length) {
       const d = distance(position, route[0]);
-      if (d <= budget) { position = route.shift()!; budget -= d; }
+      if (d <= budget) {
+        position = route.shift()!; budget -= d;
+        if (person.status === 'resident') trails = addFootstep(trails, anchor, position, person.id, world.day);
+        const a = anchor.x - riverX(bridgeZ), b = position.x - riverX(bridgeZ);
+        if (Math.abs(anchor.z - bridgeZ) < 0.8 && Math.abs(position.z - bridgeZ) < 0.8 && ((a < 0 && b >= 0) || (a >= 0 && b < 0))) bridgeCrossings++;
+        anchor = position;
+      }
       else { const t = budget / d; position = { x: position.x + (route[0].x - position.x) * t, z: position.z + (route[0].z - position.z) * t }; budget = 0; }
     }
     const arrived = !route.length && person.status === 'arriving';
-    return { ...person, position, route, dwellSeconds: route.length ? 0 : 4, status: arrived ? 'visiting' : person.status, currentGoal: arrived ? 'Visiting Su’s farmhouse' : person.currentGoal };
+    const next: VillagerState = { ...person, trailAnchor: anchor, bridgeCrossings, position, route, dwellSeconds: route.length ? 0 : 4, status: arrived ? 'visiting' : person.status, currentGoal: arrived ? 'Visiting Su’s farmhouse' : person.currentGoal };
+    return route.length ? next : arrivedAtPlace(next);
   };
   const su = move(world.population.su), mina = world.population.mina ? move(world.population.mina) : null;
   if (su === world.population.su && mina === world.population.mina) return world;
-  return { ...world, population: { ...world.population, su, mina } };
+  const newDiscoveries = discoveries.slice((world.population.discoveries ?? []).length);
+  return { ...world, development, population: { ...world.population, su, mina, trails, discoveries }, today: [...world.today, ...arrivalEvents, ...newDiscoveries.map(d => ({ day: d.day, time: 'Arrival', type: 'population' as const, actorId: d.actor, location: d.place, description: `${d.actor === 'su' ? 'Su' : 'Mina'} reached ${placeNames[d.place]} for the first time.` }))] };
 }
+export const hasUnfinishedRoutine = (person: VillagerState) => !!(person.route.length || person.itinerary.length || (person.dwellSeconds ?? 0) > 0);
 export function inviteMina(world: WorldState): WorldState {
   if (world.population.mina?.status !== 'visiting' || residentCount(world) >= populationRules.capacity) return world;
   return { ...world, population: { ...world.population, placementMode: true, mina: { ...world.population.mina, status: 'invited', currentGoal: 'Waiting for a home / bakery site' } } };
@@ -111,18 +192,19 @@ export function cancelInvitation(world: WorldState): WorldState {
   if (!world.population.placementMode || !world.population.mina) return world;
   return { ...world, population: { ...world.population, placementMode: false, mina: { ...world.population.mina, status: 'visiting', currentGoal: 'Visiting Su’s farmhouse' } } };
 }
-const routeLength = (start: Point, route: Point[]) => route.reduce((sum, q, i) => sum + distance(i ? route[i - 1] : start, q), 0);
+export const routeLength = (start: Point, route: Point[]) => route.reduce((sum, q, i) => sum + distance(i ? route[i - 1] : start, q), 0);
 const riverBank = Array.from({ length: 39 }, (_, i) => i - 19).flatMap(z => [-1, 1].flatMap(side => [2.5, 3, 3.5, 4, 4.5].map(offset => ({ x: riverX(z) + side * offset, z }))));
 const pathPoints = [...Array.from({ length: 59 }, (_, i) => ({ x: -10 + i * 0.5, z: 9.5 })), ...Array.from({ length: 17 }, (_, i) => ({ x: -5, z: 1.5 + i * 0.5 }))];
 // Nearest walkable candidate (straight-line order) that the entrance can actually walk to.
-function access(door: Point, building: Point, candidates: Point[]) {
-  for (const point of candidates.filter(q => walkable(q, building)).sort((a, b) => distance(door, a) - distance(door, b)).slice(0, 5)) {
-    const route = routeBetween(door, point, building); if (route.length) return { point, length: routeLength(door, route) };
+function access(door: Point, building: Point, candidates: Point[], nav: Navigation = {}) {
+  for (const point of candidates.filter(q => walkable(q, building, nav)).sort((a, b) => distance(door, a) - distance(door, b)).slice(0, 5)) {
+    const route = routeBetween(door, point, building, nav); if (route.length) return { point, length: routeLength(door, route) };
   }
   return null;
 }
 export function inspectPlacement(world: WorldState, p: Point): { error: string; context?: SpatialContext; door?: Point; locations?: VillageLocation[] } {
   if (!Number.isFinite(p.x) || !Number.isFinite(p.z) || Math.abs(p.x) > 17 || Math.abs(p.z) > 17) return { error: 'Keep the whole bakery inside the valley.' };
+  if (easternPlaces.some(place => distance(place.position, p) < 4)) return { error: 'Keep the eastern landmarks and their approaches open.' };
   for (const dx of [-1.7, 0, 1.7]) for (const dz of [-1.7, 0, 1.7]) {
     const q = { x: p.x + dx, z: p.z + dz };
     if (!walkable(q) || slope(q) > populationRules.maxSlope || pathDistance(q) < 0.65) return { error: 'Choose gently sloping dry ground clear of the farm, farmhouse, and paths.' };
@@ -130,10 +212,11 @@ export function inspectPlacement(world: WorldState, p: Point): { error: string; 
   const elevations = [-1.35, 1.35].flatMap(dx => [-1.35, 1.35].map(dz => terrainHeight(p.x + dx, p.z + dz)));
   if (Math.max(...elevations) - Math.min(...elevations) > 0.65) return { error: 'This footprint is too uneven for a bakery.' };
   const door = { x: p.x, z: p.z + 2 };
-  const route = routeBetween(door, farmGate, p), visitorRoute = routeBetween(world.population.mina?.position ?? suDoor, door, p);
+  const nav = navigationFor(world);
+  const route = routeBetween(door, farmGate, p, nav), visitorRoute = routeBetween(world.population.mina?.position ?? suDoor, door, p, nav);
   if (!route.length || !visitorRoute.length) return { error: 'The bakery entrance needs a walkable route to the farm and visitor.' };
   const local = world.ecology.cells[cellIndex(p.x, p.z)];
-  const river = access(door, p, riverBank), path = access(door, p, pathPoints);
+  const river = access(door, p, riverBank, nav), path = access(door, p, pathPoints, nav);
   const locations: VillageLocation[] = [{ type: 'home', position: door }, { type: 'bakery', position: { x: door.x + 1, z: door.z } }, { type: 'farm', position: { ...farmGate } }, ...(river ? [{ type: 'river' as const, position: river.point }] : []), ...(path ? [{ type: 'path' as const, position: path.point }] : [])];
   return { error: '', door, locations, context: { distanceToFarm: distance(p, farmPosition(4)), distanceToRiver: Math.abs(p.x - riverX(p.z)), distanceToPath: pathDistance(p), distanceToFarmhouse: distance(p, housePosition), fertility: local.soilFertility, soilMoisture: local.soilMoisture, elevation: terrainHeight(p.x, p.z), slope: slope(p), routeLengthToFarm: routeLength(door, route), routeLengthToRiver: river?.length ?? null, routeLengthToPath: path?.length ?? null } };
 }
@@ -141,6 +224,6 @@ export function settleMina(world: WorldState, p: Point): WorldState {
   const mina = world.population.mina;
   if (!world.population.placementMode || mina?.status !== 'invited' || residentCount(world) >= populationRules.capacity) return world;
   const checked = inspectPlacement(world, p); if (checked.error || !checked.context || !checked.door || !checked.locations) return world;
-  const resident = { ...withRoute(mina, checked.door, 'Move into home / bakery', p), status: 'resident' as const, homePosition: { ...p }, spatialContext: checked.context, socialNeed: 0.3, recentGoals: [] };
+  const resident = { ...withRoute(mina, checked.door, 'Move into home / bakery', p, navigationFor(world)), status: 'resident' as const, homePosition: { ...p }, spatialContext: checked.context, socialNeed: 0.3, recentGoals: [] };
   return { ...world, population: { ...world.population, mina: resident, placementMode: false, settlement: { position: { ...p }, door: checked.door, context: checked.context, locations: checked.locations } }, today: [...world.today, { day: world.day, time: '24:00', type: 'population', description: 'Mina settled in the village as a baker.' }] };
 }

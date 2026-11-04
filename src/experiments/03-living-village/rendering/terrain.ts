@@ -3,9 +3,10 @@ import type { Ecology } from '../simulation';
 import type { Landscape } from '../landscape';
 import { cellIndex, riverX, terrainHeight } from '../landscape';
 
-export function createTerrainMesh() {
-  const geometry = new THREE.PlaneGeometry(40, 40, 128, 128);
+export function createTerrainMesh(expanded = false) {
+  const geometry = new THREE.PlaneGeometry(expanded ? 60 : 40, 40, expanded ? 192 : 128, 128);
   geometry.rotateX(-Math.PI / 2);
+  if (expanded) geometry.translate(10, 0, 0);
   const position = geometry.attributes.position;
   for (let i = 0; i < position.count; i++) position.setY(i, terrainHeight(position.getX(i), position.getZ(i)));
   geometry.computeVertexNormals();
@@ -16,7 +17,7 @@ export function createTerrainMesh() {
   return terrain;
 }
 
-export function updateTerrainColors(terrain: THREE.Mesh, ecology: Ecology, landscape: Landscape) {
+export function updateTerrainColors(terrain: THREE.Mesh, ecology: Ecology, landscape: Landscape, showSoil = false) {
   const positions = terrain.geometry.attributes.position;
   const colors = terrain.geometry.attributes.color;
   const color = new THREE.Color();
@@ -26,6 +27,7 @@ export function updateTerrainColors(terrain: THREE.Mesh, ecology: Ecology, lands
     const slope = landscape.cells[cellIndex(x, z)].slope;
     if (slope > 0.45) color.lerp(new THREE.Color('#858575'), Math.min(0.8, slope));
     if (Math.abs(x - riverX(z)) < 2) color.lerp(new THREE.Color('#727465'), 0.7);
+    if (showSoil) color.set('#b97d39').lerp(new THREE.Color('#287ab4'), cell.soilMoisture);
     colors.setXYZ(i, color.r, color.g, color.b);
   }
   colors.needsUpdate = true;

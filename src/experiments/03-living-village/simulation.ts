@@ -1,6 +1,7 @@
 import { initialPopulation, LocationType, populationDay, PopulationState } from './population';
 import { BehaviorEventType, behaviorDay } from './behavior';
 import { CELL_WIDTH, Landscape, createLandscape, cellIndex, farmPosition } from './landscape';
+import { Development, initialDevelopment, stormWeather, developmentDay } from './development';
 // Phase 1 rules: edit these defaults or use the parameter panel. Units are explicit.
 export interface Parameters {
   seed: number; rainChance: number; rainMaxMm: number; temperatureC: number;
@@ -33,6 +34,7 @@ export interface WorldEvent {
 }
 export interface Ecology { cells: EcologyCell[]; riverStorageM3: number; riverLevel: number; runoffM3: number; dischargeM3: number }
 export interface WorldState {
+  development?: Development;
   population: PopulationState;
   landscape: Landscape; ecology: Ecology; today: WorldEvent[]; weather: Weather | null; season: string;
   day: number; randomState: number; parameters: Parameters; plots: Plot[];
@@ -52,7 +54,7 @@ export function createWorld(parameters: Parameters = defaultParameters): WorldSt
   const error = validateParameters(parameters); if (error) throw new Error(error);
   const landscape = createLandscape(parameters.seed);
   const ecology: Ecology = { cells: landscape.cells.map(c => ({ waterMm: parameters.soilCapacityMm * 0.55, soilMoisture: 0.55, soilFertility: parameters.fertility * c.fertility, vegetationHealth: 0.8, biomass: 0.8 })), riverStorageM3: 65, riverLevel: 0.65, runoffM3: 0, dischargeM3: 0 };
-  return { population: initialPopulation(parameters.seed), landscape, ecology, today: [], weather: null, season: 'Spring', day: 0, randomState: parameters.seed >>> 0, parameters: { ...parameters }, harvested: 0, history: [],
+  return { development: initialDevelopment(), population: initialPopulation(parameters.seed), landscape, ecology, today: [], weather: null, season: 'Spring', day: 0, randomState: parameters.seed >>> 0, parameters: { ...parameters }, harvested: 0, history: [],
     plots: Array.from({ length: 9 }, (_, id) => ({ ownerId: 'su', id, waterMm: parameters.soilCapacityMm * 0.55,
       drainage: landscape.cells[cellIndex(farmPosition(id).x, farmPosition(id).z)].drainage, crop: { growth: 0, health: 1, stress: 0, age: 0 } })) };
 }
@@ -74,15 +76,24 @@ export function soilStep(water: number, drainage: number, hasCrop: boolean, weat
   const uptake = hasCrop ? Math.min(stored, p.uptakeMm) : 0;
   return { waterMm: stored - uptake, overflow, evaporation, drained, uptake };
 }
+/** Edit rules without replacing terrain, inhabitants, history, RNG or stored water.
+ * Capacity overflow and new fertility are resolved on the next ecological day. */
+export function updateEcologyParameters(world: WorldState, patch: Partial<Omit<Parameters, 'seed'>>): WorldState {
+  const parameters = { ...world.parameters, ...patch, seed: world.parameters.seed };
+  const error = validateParameters(parameters);
+  if (error) return world;
+  return { ...world, parameters };
+}
 export function advanceDay(world: WorldState, fixture?: Weather): WorldState {
   const p = world.parameters, day = world.day + 1, season = calendar(day);
   let randomState = world.randomState;
   const random = () => { randomState = (Math.imul(1664525, randomState) + 1013904223) >>> 0; return randomState / 4294967296; };
   const wet = random() < clamp(p.rainChance * season.rainMultiplier);
   const rainfallMm = wet ? random() * p.rainMaxMm : 0;
-  const weather: Weather = fixture ?? { kind: wet ? 'Rain' : random() < 0.4 ? 'Cloudy' : 'Clear', rainfallMm,
+  const baseWeather: Weather = fixture ?? { kind: wet ? 'Rain' : random() < 0.4 ? 'Cloudy' : 'Clear', rainfallMm,
     temperatureC: p.temperatureC + season.temperatureOffset + (random() - 0.5) * 8 };
-  let plots = world.plots, cells = world.ecology.cells.map(c => ({ ...c }));
+  const { weather, windKph } = stormWeather(world, day, baseWeather, !!fixture);
+  let plots = world.plots, cells = world.ecology.cells.map((c, i) => ({ ...c, soilFertility: p.fertility * world.landscape.cells[i].fertility }));
   let storage = world.ecology.riverStorageM3, runoffTotal = 0, dischargeTotal = 0;
   const today: WorldEvent[] = [{ day, time: '00:00', type: 'weather', description: `${weather.kind}: ${weather.rainfallMm.toFixed(1)} mm rain scheduled today, ${weather.temperatureC.toFixed(1)} °C.` }];
   const plotCells = new Set(plots.map(plot => { const p = farmPosition(plot.id); return cellIndex(p.x, p.z); }));
@@ -140,11 +151,12 @@ export function advanceDay(world: WorldState, fixture?: Weather): WorldState {
   today.push({ day, time: '24:00', type: 'river', description: `River ${riverLevel >= world.ecology.riverLevel ? 'rose' : 'fell'} ${Math.abs(riverLevel - world.ecology.riverLevel).toFixed(3)} m; runoff ${runoffTotal.toFixed(2)} m³.` });
   today.push({ day, time: '24:00', type: 'crop', description: `Mean crop growth +${(growth * 100).toFixed(1)} percentage points.` });
   const ecology: Ecology = { cells, riverStorageM3: storage, riverLevel, runoffM3: runoffTotal, dischargeM3: dischargeTotal };
+  const resolved = developmentDay({ ...world, day, season: season.name, weather, today, ecology, randomState, plots }, windKph);
   const record: DailyRecord = { day, season: season.name, ...weather, harvested: world.harvested,
-    plots: plots.map(plot => ({ id: plot.id, moisture: plot.waterMm / p.soilCapacityMm,
+    plots: resolved.plots.map(plot => ({ id: plot.id, moisture: plot.waterMm / p.soilCapacityMm,
       health: plot.crop?.health ?? null, growth: plot.crop?.growth ?? null,
       expectedYield: expectedYield(plot.crop, p), status: cropStatus(plot.crop) })) };
-  return behaviorDay(populationDay({ ...world, day, season: season.name, weather, today, ecology, randomState, plots, history: [...world.history, record] }));
+  return behaviorDay(populationDay({ ...resolved, history: [...world.history, record] }));
 }
 export function advanceDays(world: WorldState, count: number): WorldState {
   let next = world; for (let i = 0; i < count; i++) { const before = next.population.mina; next = advanceDay(next); if (!before && next.population.mina) break; } return next;

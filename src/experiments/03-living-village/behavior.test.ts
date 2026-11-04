@@ -10,6 +10,25 @@ function invited() {
 }
 const context: SpatialContext = { distanceToFarm: 15, distanceToRiver: 10, distanceToPath: 8, distanceToFarmhouse: 12, fertility: 0.7, soilMoisture: 0.5, elevation: 1.5, slope: 0.1, routeLengthToFarm: 15, routeLengthToRiver: 15, routeLengthToPath: 15 };
 const inputs = (o: Partial<BehaviorInputs> = {}): BehaviorInputs => ({ part: 'afternoon', energy: 0.7, socialNeed: 0.4, atHome: true, context, rainfallMm: 0, temperatureC: 18, riverLevel: 0.6, farmActivity: 0, ...o });
+test('familiarity changes only the matching weight and can be disabled without removing memories', () => {
+  const memories = { farm: { visits: 10, familiarity: 1, lastDay: 4 } };
+  const base = goalWeights(inputs()), familiar = goalWeights(inputs({ memories }));
+  expect(familiar.VISIT_FARM).toBeCloseTo(base.VISIT_FARM * 1.35);
+  expect(familiar.VISIT_RIVER).toBe(base.VISIT_RIVER);
+  expect(goalWeights(inputs({ memories, memoryFeedback: false }))).toEqual(base);
+  expect(goalWeights(inputs({ memories: { river: memories.farm }, context: { ...context, routeLengthToRiver: null } })).VISIT_RIVER).toBe(0);
+});
+test('only completed routes create memories; waiting does not count twice', () => {
+  const world = createWorld();
+  const activity = { part: 'afternoon' as const, goal: 'VISIT_FARM' as const, target: 'farm' as const, targetPosition: { x: -4, z: 1 }, energy: 1, socialNeed: 0.5, weights: null };
+  const person = { ...world.population.su, id: 'mina' as const, name: 'Mina', profession: 'baker' as const, position: { x: -4, z: 0 }, route: [{ x: -4, z: 1 }], activity };
+  const start = { ...world, population: { ...world.population, mina: person } };
+  expect(movePopulation(start, 0.1).population.mina!.placeMemories).toBeUndefined();
+  const reached = movePopulation(start, 1);
+  expect(reached.population.mina!.placeMemories!.farm!.visits).toBe(1);
+  expect(movePopulation(reached, 1).population.mina!.placeMemories!.farm!.visits).toBe(1);
+  expect(person).not.toHaveProperty('placeMemories');
+});
 function counts(point: { x: number; z: number }, days = 60) {
   let world = advanceDay(settleMina(invited(), point)); const n: Record<string, number> = {};
   for (let d = 0; d < days; d++) { world = advanceDay(world); world.population.mina!.recentGoals!.slice(-1)[0].goals.forEach(g => { n[g] = (n[g] ?? 0) + 1; }); }

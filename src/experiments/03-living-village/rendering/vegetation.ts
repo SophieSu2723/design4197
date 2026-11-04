@@ -2,11 +2,15 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils';
 import type { Ecology, WorldState } from '../simulation';
 import { Landscape, terrainHeight, VegetationSite } from '../landscape';
+import { footprintKey } from '../trails';
+import { Development, plantKey, shopPosition } from '../development';
 
 export interface VegetationRenderEntry {
   mesh: THREE.InstancedMesh;
   sites: VegetationSite[];
   dynamic: boolean;
+  windBases?: THREE.Matrix4[];
+  fallen?: boolean[];
 }
 
 const material = (color: string) => new THREE.MeshStandardMaterial({ color, roughness: 0.95 });
@@ -77,23 +81,46 @@ export function createVegetation(landscape: Landscape, root: THREE.Group): Veget
   return vegetation;
 }
 
-export function updateVegetation(vegetation: VegetationRenderEntry[], ecology: Ecology, settlement: WorldState['population']['settlement']) {
+export function updateVegetation(vegetation: VegetationRenderEntry[], ecology: Ecology, settlement: WorldState['population']['settlement'], footprint = new Map<string, number>(), development?: Development) {
   const transform = new THREE.Object3D(), color = new THREE.Color();
-  vegetation.forEach(({ mesh, sites, dynamic }) => {
+  vegetation.forEach(entry => {
+    const { mesh, sites, dynamic } = entry;
+    const trees = sites[0]?.kind === 'tree';
+    if (trees) { entry.windBases = []; entry.fallen = []; }
     sites.forEach((site, i) => {
       const cell = ecology.cells[site.cell];
       transform.position.set(site.x, terrainHeight(site.x, site.z), site.z);
       transform.rotation.set(0, site.rotation, 0);
+      const damage = development?.plantDamage[plantKey(site)];
+      if (damage?.fallen) transform.rotation.z = 1.25;
       const vigor = dynamic ? 0.7 + cell.biomass * 0.3 : 1;
-      const occupied = settlement && Math.abs(site.x - settlement.position.x) < 2.1 && Math.abs(site.z - settlement.position.z) < 2.1;
+      const occupied = (settlement && Math.abs(site.x - settlement.position.x) < 2.1 && Math.abs(site.z - settlement.position.z) < 2.1) || (development?.shop.requested && Math.abs(site.x - shopPosition.x) < 2.6 && Math.abs(site.z - shopPosition.z) < 2.6);
+      const wear = site.kind === 'grass' || site.kind === 'flower' ? footprint.get(footprintKey(site.x, site.z)) ?? 0 : 0;
       transform.scale.setScalar(occupied ? 0 : site.scale * vigor);
+      transform.scale.y *= 1 - wear * 0.8;
+      if (dynamic && damage && !damage.fallen) transform.scale.y *= 1 - damage.damage * 0.25;
       transform.updateMatrix(); mesh.setMatrixAt(i, transform.matrix);
+      if (trees) { entry.windBases!.push(transform.matrix.clone()); entry.fallen!.push(!!damage?.fallen); }
       color.set(dynamic ? '#8c805a' : '#ffffff');
       if (dynamic) color.lerp(new THREE.Color('#c0cfab'), cell.vegetationHealth);
+      if (wear > 0) color.lerp(new THREE.Color('#9c8560'), wear * 0.65);
+      if (damage) color.lerp(new THREE.Color('#806247'), damage.fallen ? 0.85 : damage.damage * 0.8);
       mesh.setColorAt(i, color);
     });
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     mesh.computeBoundingSphere();
+  });
+}
+
+const windRotation = new THREE.Matrix4(), windMatrix = new THREE.Matrix4();
+export function animateVegetation(vegetation: VegetationRenderEntry[], windKph: number, time: number) {
+  vegetation.forEach(entry => {
+    if (!entry.windBases) return;
+    entry.windBases.forEach((base, i) => {
+      const bend = entry.fallen?.[i] ? 0 : (windKph / 120) * (0.08 + Math.sin(time * 3 + entry.sites[i].x) * 0.045);
+      windRotation.makeRotationZ(-bend); windMatrix.multiplyMatrices(base, windRotation); entry.mesh.setMatrixAt(i, windMatrix);
+    });
+    entry.mesh.instanceMatrix.needsUpdate = true;
   });
 }
