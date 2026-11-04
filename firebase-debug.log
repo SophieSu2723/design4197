@@ -1,0 +1,204 @@
+[debug] [2026-10-26T22:04:43.768Z] ----------------------------------------------------------------------
+[debug] [2026-10-26T22:04:43.769Z] Command:       /usr/local/bin/node /Users/sufeier/.npm/_npx/7750544ccf494d8b/node_modules/.bin/firebase init hosting
+[debug] [2026-10-26T22:04:43.770Z] CLI Version:   15.34.1
+[debug] [2026-10-26T22:04:43.770Z] Platform:      darwin
+[debug] [2026-10-26T22:04:43.770Z] Node Version:  v24.20.0
+[debug] [2026-10-26T22:04:43.770Z] Detected Agent: unknown
+[debug] [2026-10-26T22:04:43.770Z] Time:          Mon Oct 26 2026 18:04:43 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-10-26T22:04:43.770Z] ----------------------------------------------------------------------
+[debug] 
+[info] 
+     ######## #### ########  ######## ########     ###     ######  ########
+     ##        ##  ##     ## ##       ##     ##  ##   ##  ##       ##
+     ######    ##  ########  ######   ########  #########  ######  ######
+     ##        ##  ##    ##  ##       ##     ## ##     ##       ## ##
+     ##       #### ##     ## ######## ########  ##     ##  ######  ########
+
+You're about to initialize a Firebase project in this directory:
+
+  /Users/sufeier/Documents/GitHub/design4197
+
+[info] 
+=== Project Setup
+[info] 
+[info] First, let's associate this project directory with a Firebase project.
+[info] You can create multiple project aliases by running firebase use --add, 
+[info] 
+[debug] [2026-10-26T22:05:55.978Z] ----------------------------------------------------------------------
+[debug] [2026-10-26T22:05:55.981Z] Command:       /usr/local/bin/node /Users/sufeier/.npm/_npx/7750544ccf494d8b/node_modules/.bin/firebase deploy --only hosting --project feier-su-design-project
+[debug] [2026-10-26T22:05:55.981Z] CLI Version:   15.34.1
+[debug] [2026-10-26T22:05:55.981Z] Platform:      darwin
+[debug] [2026-10-26T22:05:55.981Z] Node Version:  v24.20.0
+[debug] [2026-10-26T22:05:55.981Z] Detected Agent: codex_cli
+[debug] [2026-10-26T22:05:55.981Z] Time:          Mon Oct 26 2026 18:05:55 GMT-0400 (Eastern Daylight Time)
+[debug] [2026-10-26T22:05:55.981Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-26T22:05:56.805Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-10-26T22:05:56.806Z] > authorizing via signed-in user (fs495@cornell.edu)
+[debug] [2026-10-26T22:05:56.806Z] [iam] checking project feier-su-design-project for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-10-26T22:05:56.814Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:56.814Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:56.815Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/feier-su-design-project:testIamPermissions [none]
+[debug] [2026-10-26T22:05:56.815Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/feier-su-design-project:testIamPermissions  x-goog-user-project=feier-su-design-project
+[debug] [2026-10-26T22:05:56.815Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/feier-su-design-project:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-10-26T22:05:56.964Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/feier-su-design-project:testIamPermissions 200
+[debug] [2026-10-26T22:05:56.964Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/feier-su-design-project:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-10-26T22:05:56.964Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:56.964Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:56.965Z] >>> [apiv2][query] GET https://serviceusage.googleapis.com/v1/projects/feier-su-design-project/services/firebasehosting.googleapis.com [none]
+[debug] [2026-10-26T22:05:56.965Z] >>> [apiv2][(partial)header] GET https://serviceusage.googleapis.com/v1/projects/feier-su-design-project/services/firebasehosting.googleapis.com  x-goog-user-project=feier-su-design-project
+[debug] [2026-10-26T22:05:57.223Z] <<< [apiv2][status] GET https://serviceusage.googleapis.com/v1/projects/feier-su-design-project/services/firebasehosting.googleapis.com 200
+[debug] [2026-10-26T22:05:57.223Z] <<< [apiv2][body] GET https://serviceusage.googleapis.com/v1/projects/feier-su-design-project/services/firebasehosting.googleapis.com [omitted]
+[debug] [2026-10-26T22:05:57.232Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:57.232Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:57.233Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/feier-su-design-project [none]
+[debug] [2026-10-26T22:05:57.583Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/feier-su-design-project 200
+[debug] [2026-10-26T22:05:57.583Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/feier-su-design-project {"projectId":"feier-su-design-project","projectNumber":"1013969975824","displayName":"Feier Su Design Project","name":"projects/feier-su-design-project","resources":{"hostingSite":"feier-su-design-project"},"state":"ACTIVE","labels":{"firebase":"enabled"},"etag":"1_7336b1dc-5416-410c-8fc0-e5fbb7c3bf87"}
+[info] 
+[info] === Deploying to 'feier-su-design-project'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-10-26T22:05:57.588Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:57.588Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:57.588Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project [none]
+[debug] [2026-10-26T22:05:58.037Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project 200
+[debug] [2026-10-26T22:05:58.038Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project {"name":"projects/feier-su-design-project/sites/feier-su-design-project","defaultUrl":"https://feier-su-design-project.web.app","type":"DEFAULT_SITE"}
+[debug] [2026-10-26T22:05:58.044Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:58.044Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:58.045Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions [none]
+[debug] [2026-10-26T22:05:58.045Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2026-10-26T22:05:59.388Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions 200
+[debug] [2026-10-26T22:05:59.389Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions {"name":"projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[feier-su-design-project]: beginning deploy... 
+[info] i  hosting[feier-su-design-project]: found 12 files in build 
+[debug] [2026-10-26T22:05:59.402Z] [hosting] uploading with 200 concurrency
+[debug] [2026-10-26T22:05:59.402Z] [hosting] hash cache [YnVpbGQ] not populated
+[debug] [2026-10-26T22:05:59.644Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.645Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.645Z] [hosting] hash cache [YnVpbGQ] stored for 12 files
+[debug] [2026-10-26T22:05:59.645Z] [hosting][hash queue][FINAL] {"max":240,"min":6,"avg":28.333333333333332,"active":0,"complete":12,"success":12,"errored":0,"retried":0,"total":12,"elapsed":242}
+[debug] [2026-10-26T22:05:59.646Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961:populateFiles [none]
+[debug] [2026-10-26T22:05:59.646Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961:populateFiles {"files":{"/manifest.json":"a3cde554fe3d9fa097d59c0d4e22a1325843ee0300564f525c34bc755d857bcb","/robots.txt":"391d14b3c2f8c9143a27a28c7399585142228d4d1bdbe2c87ac946de411fa9a2","/index.html":"243cd8d5aeabcc8ff381abd76fd07364c90198f3a843f245cd4c10ad4b57bc6f","/asset-manifest.json":"21eeb409281439bf028b1eb7da98ecbcacc8891738adfbbff4183fb9b00c09c0","/logo512.png":"2356e0b814e58a349935c8de17226873d615d088a867d591fef48a64c80c9a2f","/logo192.png":"f66564670b5bfe49f3f04a5b63107bae60f4a7736f1d3b83aa0115f7acf45150","/static/js/main.1b296586.js.LICENSE.txt":"85dc623156b3ece8935fdf61a2625f7e8c3efaf8bd6d4dc1d086b7ab3971c56e","/favicon.ico":"1463be9bedc82e16f9364eec7a1f5152cbe56229401381eed65c1496cb884407","/static/css/main.ac0bc35c.css":"41a0869211a5b890b8334e9db9ac799958564725995dd705812aa2274ef788e5","/static/css/main.ac0bc35c.css.map":"1f461bad53fe7df4a062c771d93dfcee5b84a0c5659166cb241eb663515c613a","/static/js/main.1b296586.js":"1652946276dc637dfb24a49e9036af83124e2e55a0555b1b03e23e7ea798b2df","/static/js/main.1b296586.js.map":"2a84a5980a6821f108173642773604200b7a489cbe9b62d8db80b5f2fd7087a8"}}
+[debug] [2026-10-26T22:05:59.988Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961:populateFiles 200
+[debug] [2026-10-26T22:05:59.989Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961:populateFiles {"uploadRequiredHashes":["41a0869211a5b890b8334e9db9ac799958564725995dd705812aa2274ef788e5","2356e0b814e58a349935c8de17226873d615d088a867d591fef48a64c80c9a2f","f66564670b5bfe49f3f04a5b63107bae60f4a7736f1d3b83aa0115f7acf45150","2a84a5980a6821f108173642773604200b7a489cbe9b62d8db80b5f2fd7087a8","391d14b3c2f8c9143a27a28c7399585142228d4d1bdbe2c87ac946de411fa9a2","85dc623156b3ece8935fdf61a2625f7e8c3efaf8bd6d4dc1d086b7ab3971c56e","a3cde554fe3d9fa097d59c0d4e22a1325843ee0300564f525c34bc755d857bcb","243cd8d5aeabcc8ff381abd76fd07364c90198f3a843f245cd4c10ad4b57bc6f","21eeb409281439bf028b1eb7da98ecbcacc8891738adfbbff4183fb9b00c09c0","1f461bad53fe7df4a062c771d93dfcee5b84a0c5659166cb241eb663515c613a","1652946276dc637dfb24a49e9036af83124e2e55a0555b1b03e23e7ea798b2df","1463be9bedc82e16f9364eec7a1f5152cbe56229401381eed65c1496cb884407"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files"}
+[debug] [2026-10-26T22:05:59.990Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.990Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.990Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.990Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.991Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.991Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.991Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.991Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.991Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.991Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.992Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.992Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.992Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.992Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.992Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.993Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.993Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.993Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.993Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.993Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.993Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.994Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.994Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.994Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:05:59.994Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/41a0869211a5b890b8334e9db9ac799958564725995dd705812aa2274ef788e5 [none]
+[debug] [2026-10-26T22:05:59.994Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/41a0869211a5b890b8334e9db9ac799958564725995dd705812aa2274ef788e5 [stream]
+[debug] [2026-10-26T22:05:59.995Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2356e0b814e58a349935c8de17226873d615d088a867d591fef48a64c80c9a2f [none]
+[debug] [2026-10-26T22:05:59.995Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2356e0b814e58a349935c8de17226873d615d088a867d591fef48a64c80c9a2f [stream]
+[debug] [2026-10-26T22:05:59.996Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/f66564670b5bfe49f3f04a5b63107bae60f4a7736f1d3b83aa0115f7acf45150 [none]
+[debug] [2026-10-26T22:05:59.996Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/f66564670b5bfe49f3f04a5b63107bae60f4a7736f1d3b83aa0115f7acf45150 [stream]
+[debug] [2026-10-26T22:05:59.996Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2a84a5980a6821f108173642773604200b7a489cbe9b62d8db80b5f2fd7087a8 [none]
+[debug] [2026-10-26T22:05:59.996Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2a84a5980a6821f108173642773604200b7a489cbe9b62d8db80b5f2fd7087a8 [stream]
+[debug] [2026-10-26T22:05:59.998Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/391d14b3c2f8c9143a27a28c7399585142228d4d1bdbe2c87ac946de411fa9a2 [none]
+[debug] [2026-10-26T22:05:59.998Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/391d14b3c2f8c9143a27a28c7399585142228d4d1bdbe2c87ac946de411fa9a2 [stream]
+[debug] [2026-10-26T22:05:59.999Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/85dc623156b3ece8935fdf61a2625f7e8c3efaf8bd6d4dc1d086b7ab3971c56e [none]
+[debug] [2026-10-26T22:05:59.999Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/85dc623156b3ece8935fdf61a2625f7e8c3efaf8bd6d4dc1d086b7ab3971c56e [stream]
+[debug] [2026-10-26T22:06:00.004Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/a3cde554fe3d9fa097d59c0d4e22a1325843ee0300564f525c34bc755d857bcb [none]
+[debug] [2026-10-26T22:06:00.004Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/a3cde554fe3d9fa097d59c0d4e22a1325843ee0300564f525c34bc755d857bcb [stream]
+[debug] [2026-10-26T22:06:00.007Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/243cd8d5aeabcc8ff381abd76fd07364c90198f3a843f245cd4c10ad4b57bc6f [none]
+[debug] [2026-10-26T22:06:00.007Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/243cd8d5aeabcc8ff381abd76fd07364c90198f3a843f245cd4c10ad4b57bc6f [stream]
+[debug] [2026-10-26T22:06:00.008Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/21eeb409281439bf028b1eb7da98ecbcacc8891738adfbbff4183fb9b00c09c0 [none]
+[debug] [2026-10-26T22:06:00.008Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/21eeb409281439bf028b1eb7da98ecbcacc8891738adfbbff4183fb9b00c09c0 [stream]
+[debug] [2026-10-26T22:06:00.009Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1f461bad53fe7df4a062c771d93dfcee5b84a0c5659166cb241eb663515c613a [none]
+[debug] [2026-10-26T22:06:00.009Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1f461bad53fe7df4a062c771d93dfcee5b84a0c5659166cb241eb663515c613a [stream]
+[debug] [2026-10-26T22:06:00.009Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1652946276dc637dfb24a49e9036af83124e2e55a0555b1b03e23e7ea798b2df [none]
+[debug] [2026-10-26T22:06:00.009Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1652946276dc637dfb24a49e9036af83124e2e55a0555b1b03e23e7ea798b2df [stream]
+[debug] [2026-10-26T22:06:00.009Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1463be9bedc82e16f9364eec7a1f5152cbe56229401381eed65c1496cb884407 [none]
+[debug] [2026-10-26T22:06:00.009Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1463be9bedc82e16f9364eec7a1f5152cbe56229401381eed65c1496cb884407 [stream]
+[debug] [2026-10-26T22:06:00.013Z] [hosting][populate queue][FINAL] {"max":350,"min":350,"avg":350,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":369}
+[debug] [2026-10-26T22:06:00.014Z] [hosting] uploads queued: 12
+[debug] [2026-10-26T22:06:00.423Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/f66564670b5bfe49f3f04a5b63107bae60f4a7736f1d3b83aa0115f7acf45150 200
+[debug] [2026-10-26T22:06:00.423Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/f66564670b5bfe49f3f04a5b63107bae60f4a7736f1d3b83aa0115f7acf45150 [stream]
+[debug] [2026-10-26T22:06:00.441Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1463be9bedc82e16f9364eec7a1f5152cbe56229401381eed65c1496cb884407 200
+[debug] [2026-10-26T22:06:00.441Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1463be9bedc82e16f9364eec7a1f5152cbe56229401381eed65c1496cb884407 [stream]
+[debug] [2026-10-26T22:06:00.454Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2356e0b814e58a349935c8de17226873d615d088a867d591fef48a64c80c9a2f 200
+[debug] [2026-10-26T22:06:00.454Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2356e0b814e58a349935c8de17226873d615d088a867d591fef48a64c80c9a2f [stream]
+[debug] [2026-10-26T22:06:00.461Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/391d14b3c2f8c9143a27a28c7399585142228d4d1bdbe2c87ac946de411fa9a2 200
+[debug] [2026-10-26T22:06:00.461Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/391d14b3c2f8c9143a27a28c7399585142228d4d1bdbe2c87ac946de411fa9a2 [stream]
+[debug] [2026-10-26T22:06:00.492Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1f461bad53fe7df4a062c771d93dfcee5b84a0c5659166cb241eb663515c613a 200
+[debug] [2026-10-26T22:06:00.492Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1f461bad53fe7df4a062c771d93dfcee5b84a0c5659166cb241eb663515c613a [stream]
+[debug] [2026-10-26T22:06:00.532Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/85dc623156b3ece8935fdf61a2625f7e8c3efaf8bd6d4dc1d086b7ab3971c56e 200
+[debug] [2026-10-26T22:06:00.532Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/85dc623156b3ece8935fdf61a2625f7e8c3efaf8bd6d4dc1d086b7ab3971c56e [stream]
+[debug] [2026-10-26T22:06:00.561Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1652946276dc637dfb24a49e9036af83124e2e55a0555b1b03e23e7ea798b2df 200
+[debug] [2026-10-26T22:06:00.561Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/1652946276dc637dfb24a49e9036af83124e2e55a0555b1b03e23e7ea798b2df [stream]
+[debug] [2026-10-26T22:06:00.576Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/243cd8d5aeabcc8ff381abd76fd07364c90198f3a843f245cd4c10ad4b57bc6f 200
+[debug] [2026-10-26T22:06:00.576Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/243cd8d5aeabcc8ff381abd76fd07364c90198f3a843f245cd4c10ad4b57bc6f [stream]
+[debug] [2026-10-26T22:06:00.665Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/41a0869211a5b890b8334e9db9ac799958564725995dd705812aa2274ef788e5 200
+[debug] [2026-10-26T22:06:00.666Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/41a0869211a5b890b8334e9db9ac799958564725995dd705812aa2274ef788e5 [stream]
+[debug] [2026-10-26T22:06:00.722Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/21eeb409281439bf028b1eb7da98ecbcacc8891738adfbbff4183fb9b00c09c0 200
+[debug] [2026-10-26T22:06:00.722Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/21eeb409281439bf028b1eb7da98ecbcacc8891738adfbbff4183fb9b00c09c0 [stream]
+[debug] [2026-10-26T22:06:00.740Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/a3cde554fe3d9fa097d59c0d4e22a1325843ee0300564f525c34bc755d857bcb 200
+[debug] [2026-10-26T22:06:00.740Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/a3cde554fe3d9fa097d59c0d4e22a1325843ee0300564f525c34bc755d857bcb [stream]
+[debug] [2026-10-26T22:06:00.831Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2a84a5980a6821f108173642773604200b7a489cbe9b62d8db80b5f2fd7087a8 200
+[debug] [2026-10-26T22:06:00.832Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/feier-su-design-project/versions/ba5e738ae9093961/files/2a84a5980a6821f108173642773604200b7a489cbe9b62d8db80b5f2fd7087a8 [stream]
+[debug] [2026-10-26T22:06:00.832Z] [hosting][upload queue][FINAL] {"max":841,"min":433,"avg":583.5,"active":0,"complete":12,"success":12,"errored":0,"retried":0,"total":12,"elapsed":843}
+[info] i  hosting: upload complete 
+[info] ✔  hosting[feier-su-design-project]: file upload complete 
+[debug] [2026-10-26T22:06:00.832Z] [hosting] deploy completed after 1440ms
+[debug] [2026-10-26T22:06:00.833Z] [
+  {
+    "config": {
+      "public": "build",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ],
+      "site": "feier-su-design-project"
+    },
+    "version": "projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961"
+  }
+]
+[info] i  hosting[feier-su-design-project]: finalizing version... 
+[debug] [2026-10-26T22:06:00.834Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:06:00.834Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:06:00.834Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961 updateMask=status%2Cconfig
+[debug] [2026-10-26T22:06:00.834Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961 {"status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]}}
+[debug] [2026-10-26T22:06:01.060Z] <<< [apiv2][status] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961 200
+[debug] [2026-10-26T22:06:01.060Z] <<< [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961 {"name":"projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-26T22:05:58.253372Z","createUser":{"email":"fs495@cornell.edu"},"finalizeTime":"2026-10-26T22:06:01.012677Z","finalizeUser":{"email":"fs495@cornell.edu"}}
+[debug] [2026-10-26T22:06:01.061Z] [hosting] finalized version for feier-su-design-project:[object Object]
+[info] ✔  hosting[feier-su-design-project]: version finalized 
+[info] i  hosting[feier-su-design-project]: releasing new version... 
+[debug] [2026-10-26T22:06:01.061Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:06:01.061Z] Checked if tokens are valid: true, expires at: 1793055881338
+[debug] [2026-10-26T22:06:01.061Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/channels/live/releases versionName=projects%2Ffeier-su-design-project%2Fsites%2Ffeier-su-design-project%2Fversions%2Fba5e738ae9093961
+[debug] [2026-10-26T22:06:01.061Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/channels/live/releases {}
+[debug] [2026-10-26T22:06:01.367Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/channels/live/releases 200
+[debug] [2026-10-26T22:06:01.367Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/feier-su-design-project/sites/feier-su-design-project/channels/live/releases {"name":"projects/feier-su-design-project/sites/feier-su-design-project/channels/live/releases/1793052360712000","version":{"name":"projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-26T22:05:58.253372Z","createUser":{"email":"fs495@cornell.edu","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJmWyUb_rQtGDmCyZry9wSTW26iX9zGfvarhYXvNsT8upksgA=mo"},"finalizeTime":"2026-10-26T22:06:01.012677Z","finalizeUser":{"email":"fs495@cornell.edu","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJmWyUb_rQtGDmCyZry9wSTW26iX9zGfvarhYXvNsT8upksgA=mo"}},"type":"DEPLOY","releaseTime":"2026-10-26T22:06:00.712Z","releaseUser":{"email":"fs495@cornell.edu","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJmWyUb_rQtGDmCyZry9wSTW26iX9zGfvarhYXvNsT8upksgA=mo"}}
+[debug] [2026-10-26T22:06:01.368Z] [hosting] release: {"name":"projects/feier-su-design-project/sites/feier-su-design-project/channels/live/releases/1793052360712000","version":{"name":"projects/feier-su-design-project/sites/feier-su-design-project/versions/ba5e738ae9093961","status":"FINALIZED","config":{"rewrites":[{"glob":"**","path":"/index.html"}]},"labels":{"deployment-tool":"cli-firebase"},"createTime":"2026-10-26T22:05:58.253372Z","createUser":{"email":"fs495@cornell.edu","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJmWyUb_rQtGDmCyZry9wSTW26iX9zGfvarhYXvNsT8upksgA=mo"},"finalizeTime":"2026-10-26T22:06:01.012677Z","finalizeUser":{"email":"fs495@cornell.edu","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJmWyUb_rQtGDmCyZry9wSTW26iX9zGfvarhYXvNsT8upksgA=mo"}},"type":"DEPLOY","releaseTime":"2026-10-26T22:06:00.712Z","releaseUser":{"email":"fs495@cornell.edu","imageUrl":"https://lh3.googleusercontent.com/a/ACg8ocJmWyUb_rQtGDmCyZry9wSTW26iX9zGfvarhYXvNsT8upksgA=mo"}}
+[info] ✔  hosting[feier-su-design-project]: release complete 
+[info] 
+[info] ✔  Deploy complete! 
+[info] 
+[info] Project Console: https://console.firebase.google.com/project/feier-su-design-project/overview
+[info] Hosting URL: https://feier-su-design-project.web.app
