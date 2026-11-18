@@ -128,3 +128,19 @@
 @media(max-width:1000px) and (min-width:541px){.village-app .noise-layout{grid-template-columns:300px minmax(0,1fr)}}
 @media(max-width:720px){.ecology-story{height:188px}.village-app .noise-scene{bottom:188px}.world-playbar{bottom:198px}.village-app .village-diagnostics{bottom:252px;max-height:110px}.village-app .village-visitor-notice{bottom:252px}.ecology-chain{grid-template-columns:repeat(2,minmax(0,1fr))}.ecology-story h2{font-size:12px}}
 @media(max-width:540px){.village-app .noise-layout{display:flex;flex-direction:column;overflow:auto}.village-app .noise-main{order:-1;min-height:0;height:72dvh;flex-shrink:0}.village-app .noise-controls{height:auto;overflow:visible;border-right:0;border-top:1px solid var(--line);width:100%}.sidebar-sections{top:0}.ecology-story{height:188px}.village-app .noise-scene{bottom:188px}.world-playbar{bottom:198px}.village-app .village-diagnostics{bottom:252px}.village-app .village-visitor-notice{bottom:auto;top:455px}}
+
+/* The causal explanation is part of the work: keep it readable as the world grows. */
+.village-app .ecology-story{height:252px;overflow-y:auto;padding:16px 20px}
+.village-app .ecology-story h2{font-size:17px;white-space:normal}
+.village-app .ecology-story>p{font-size:12px;line-height:1.5}
+.village-app .ecology-story button{font-size:11px}
+.village-app .ecology-chain{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.village-app .ecology-chain b{font-size:11px}
+.village-app .ecology-chain strong{font-size:15px;overflow-wrap:anywhere}
+.village-app .ecology-chain span,.village-app .ecology-story .ecology-explanation{display:block;font-size:11px;line-height:1.45}
+.village-app .noise-scene{bottom:252px}
+.village-app .world-playbar{bottom:264px}
+.village-app .village-diagnostics,.village-app .village-visitor-notice{bottom:322px}
+@media(max-width:1200px){.village-app .ecology-chain{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:720px){.village-app .ecology-story{height:300px}.village-app .ecology-chain{grid-template-columns:repeat(2,minmax(0,1fr))}.village-app .noise-scene{bottom:300px}.village-app .world-playbar{bottom:312px}.village-app .village-diagnostics,.village-app .village-visitor-notice{bottom:370px}}
+@media(max-width:540px){.village-app .noise-main{height:760px;min-height:760px}.village-app .ecology-story{height:310px}.village-app .noise-scene{bottom:310px}.village-app .world-playbar{bottom:322px}.village-app .village-diagnostics{bottom:380px}.village-app .village-visitor-notice{top:120px;bottom:auto}}

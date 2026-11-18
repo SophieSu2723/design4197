@@ -64,6 +64,7 @@ I developed the project by asking each system to produce a visible consequence f
 | [04 Arrival and placement](docs/planning/PHASE2_POPULATION.md), then [spatial behavior](docs/planning/PHASE3_BEHAVIOR.md) | Could food surplus bring Mina, and could the location of her home affect her routine? | A same-seed, three-site comparison showed large differences in planned farm and walking choices (table below). Manual placement remains because it exposes the design variable. |
 | [05 Place memory and exploration](docs/planning/PHASE4_EXPLORATION.md) | What if a place changes future choices only after someone actually reaches it? | Completed arrivals now update familiarity and discovery. Footsteps expose trails and compress nearby grass; unused traces fade. The bridge opens two eastern destinations. |
 | [06 Shop, storm and recovery](docs/planning/PHASE5_DEVELOPMENT.md) | What happens to shared daily life when weather breaks access? | The ridge adds land; Su's completed work visits build a shop; storms can close the bridge and damage crops, plants and roofing; later visits repair access. A recorded run is described below. |
+| [07 Seed-bank growth](docs/planning/PHASE6_SUCCESSION.md) | Can rain, soil and completed footsteps change where new vegetation appears? | Latent grass and flower sites germinate on suitable ground, then grow or decline over days. The live control and a readable scene panel show gains, losses and their causes. |
 
 **A controlled placement comparison.** In an earlier behavior model, I kept seed 42 and the weather/decision rolls fixed, changed only Mina's home site, and ran 60 days (240 day-part *plans* per site):
 
@@ -81,7 +82,7 @@ These are **historical decision counts, not proof of completed visits**. That wa
 
 **How to see the present system.** In **03 / Living Village**, choose **Start exploration study** for a reproducible day-zero settlement, then **Open eastern ridge** and **Commission shop**. Use **Play 30 days** or **Run world** to watch completed routes, then **Queue one storm** (around 90 km/h) and advance a day. Compare the bridge, plants, crops, shop and residents before and after; read the cause-and-effect and place-memory panels for why. Adjust rain, soil, wind or curiosity during playback to alter the existing world without erasing its history. To compare house sites, start fresh runs with the same seed, invite Mina and place her home at different valid points.
 
-**What remains unresolved.** The valley has two residents and authored destinations. Its place memory is a simple score, not an account of human emotion or the experience in Suh's work. Vegetation changes health at fixed sites; it does not colonize freely. Fallen trunks do not block paths. The shop stores food but has no prices or broader economy. The storm model is illustrative rather than structural engineering, and a browser refresh does not yet preserve the run. These limits matter when reading the screenshots as evidence.
+**What remains unresolved.** The valley has two residents and authored destinations. Its place memory is a simple score, not an account of human emotion or the experience in Suh's work. New grass and flowers establish from precomputed potential sites; unrestricted seed dispersal and ecological competition are not modeled. Fallen trunks do not block paths. The shop stores food but has no prices or broader economy. The storm model is illustrative rather than structural engineering, and a browser refresh does not yet preserve the run. These limits matter when reading the screenshots as evidence.
 
 ### The three experiments
 
@@ -118,7 +119,7 @@ flowchart LR
   V -- raycast hit point --> C
 ```
 
-This separation is what makes the systems testable (71 Jest tests run without WebGL) and reproducible. Rendering can never change an outcome.
+This separation is what makes the systems testable (75 Jest tests run without WebGL) and reproducible. Rendering can never change an outcome.
 
 ## 4. 01 / Noise Field: geography from noise
 
@@ -211,7 +212,7 @@ flowchart TD
 * A flat terrace is blended in for Su's farm.
 * The terrain is sampled into **32 × 32 ecological cells**, each with elevation, slope, distance to water, `drainage = 0.6 + 1.5 · slope` and `fertility = clamp(0.95 − 0.3 · slope − 0.012 · waterDistance)`.
 
-**Vegetation scattering** is rejection sampling with ecological suitability. 7,500 seeded candidate points are drawn. Points inside excluded zones (farm, house, paths, channel) are discarded. Each remaining point picks a kind (tree, rock, shrub, flower or grass) from local slope, fertility and moisture. It survives with probability ∝ `fertility × moisture × (1 − slope/1.1)`. Trees also need to be more than 2.8 m from other trees and away from the water. Plants are placed once. After that, ecology changes their health and color, not their positions.
+**Vegetation scattering** is rejection sampling with ecological suitability. 7,500 seeded candidate points are drawn. Points inside excluded zones (farm, house, paths, channel) are discarded. Each remaining point picks a kind (tree, rock, shrub, flower or grass) from local slope, fertility and moisture. It survives with probability ∝ `fertility × moisture × (1 − slope/1.1)`. Trees also need to be more than 2.8 m from other trees and away from the water. The original plants are placed once. A separate, initially invisible seed bank lets grass and flowers establish later where soil, weather and footsteps permit; see [Phase 6](docs/planning/PHASE6_SUCCESSION.md).
 
 ### 6.3 Ecology: daily water and growth
 
@@ -339,7 +340,7 @@ npm start
 Open <http://localhost:3000> and switch experiments using the tabs at the top. State is kept in memory: switching tabs keeps the village, but refreshing the page starts a new world.
 
 ```bash
-CI=true npm test -- --watchAll=false --runInBand   # 71 tests: terrain, ecology, population, exploration, construction, storms, UI
+CI=true npm test -- --watchAll=false --runInBand   # 75 tests: terrain, ecology, population, exploration, construction, storms, regrowth, UI
 npm run build                                      # production build in build/
 npm run benchmark:voxel                            # optional voxel meshing benchmark
 ```

@@ -94,9 +94,12 @@ export function updateVegetation(vegetation: VegetationRenderEntry[], ecology: E
       const damage = development?.plantDamage[plantKey(site)];
       if (damage?.fallen) transform.rotation.z = 1.25;
       const vigor = dynamic ? 0.7 + cell.biomass * 0.3 : 1;
+      const newGrowth = site.latent ? ecology.growthSites[plantKey(site)] ?? 0 : 1;
       const occupied = (settlement && Math.abs(site.x - settlement.position.x) < 2.1 && Math.abs(site.z - settlement.position.z) < 2.1) || (development?.shop.requested && Math.abs(site.x - shopPosition.x) < 2.6 && Math.abs(site.z - shopPosition.z) < 2.6);
       const wear = site.kind === 'grass' || site.kind === 'flower' ? footprint.get(footprintKey(site.x, site.z)) ?? 0 : 0;
-      transform.scale.setScalar(occupied ? 0 : site.scale * vigor);
+      // New patches begin as small shoots, then become fuller than the scattered background.
+      const growthScale = site.latent ? (newGrowth > 0 ? 0.35 + newGrowth * 1.65 : 0) : 1;
+      transform.scale.setScalar(occupied ? 0 : site.scale * vigor * growthScale);
       transform.scale.y *= 1 - wear * 0.8;
       if (dynamic && damage && !damage.fallen) transform.scale.y *= 1 - damage.damage * 0.25;
       transform.updateMatrix(); mesh.setMatrixAt(i, transform.matrix);
@@ -105,6 +108,7 @@ export function updateVegetation(vegetation: VegetationRenderEntry[], ecology: E
       if (dynamic) color.lerp(new THREE.Color('#c0cfab'), cell.vegetationHealth);
       if (wear > 0) color.lerp(new THREE.Color('#9c8560'), wear * 0.65);
       if (damage) color.lerp(new THREE.Color('#806247'), damage.fallen ? 0.85 : damage.damage * 0.8);
+      if (site.latent && newGrowth > 0) color.set(site.kind === 'flower' ? '#e8d38e' : '#a8d17b');
       mesh.setColorAt(i, color);
     });
     mesh.instanceMatrix.needsUpdate = true;

@@ -29,8 +29,20 @@ export function excluded(x: number, z: number) {
   return (x > -12 && x < -3.5 && z > -6 && z < 3) || (Math.abs(x + 9) < 3.4 && Math.abs(z - 7) < 3.2) || (Math.abs(x + 5) < 0.65 && z > 1 && z < 10) || (Math.abs(z - 9.5) < 0.65 && x > -10 && x < 19.5);
 }
 export interface TerrainCell { x: number; z: number; elevation: number; slope: number; waterDistance: number; drainage: number; fertility: number }
-export interface VegetationSite { x: number; z: number; cell: number; kind: 'grass' | 'flower' | 'shrub' | 'tree' | 'rock'; scale: number; rotation: number }
+export interface VegetationSite { x: number; z: number; cell: number; kind: 'grass' | 'flower' | 'shrub' | 'tree' | 'rock'; scale: number; rotation: number; latent?: boolean }
 export interface Landscape { cells: TerrainCell[]; sites: VegetationSite[]; expanded?: boolean }
+/** Potential sites use their own seed stream so new growth does not move the original plants. */
+function seedbankSites(cells: TerrainCell[], seed: number, xMin: number, width: number, attempts: number, salt: number): VegetationSite[] {
+  let state = (seed ^ salt) >>> 0;
+  const random = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
+  const sites: VegetationSite[] = [];
+  for (let i = 0; i < attempts; i++) {
+    const x = xMin + random() * width, z = random() * 39 - 19.5, cell = cellIndex(x, z), ground = cells[cell];
+    if (!ground || excluded(x, z) || ground.waterDistance < 2 || ground.slope > 0.6 || ground.fertility < 0.5) continue;
+    sites.push({ x, z, cell, kind: random() < 0.45 ? 'flower' : 'grass', scale: 0.9 + random() * 0.65, rotation: random() * Math.PI * 2, latent: true });
+  }
+  return sites;
+}
 export function createLandscape(seed: number): Landscape {
   let state = seed >>> 0;
   const random = () => { state = (Math.imul(state, 1664525) + 1013904223) >>> 0; return state / 4294967296; };
@@ -56,7 +68,7 @@ export function createLandscape(seed: number): Landscape {
     if (kind !== 'rock' && random() > suitability * 1.9) continue;
     sites.push({ x, z, cell, kind, scale: 0.7 + random() * 0.7, rotation: random() * Math.PI * 2 });
   }
-  return { cells, sites };
+  return { cells, sites: [...sites, ...seedbankSites(cells, seed, -19.5, 39, 420, 0x5eedba4)] };
 }
 
 /** Append stable cells/sites without regenerating or reindexing the inhabited valley. */
@@ -82,5 +94,6 @@ export function extendLandscape(original: Landscape, seed: number): Landscape {
     else if (choice < 0.28) kind = 'flower';
     sites.push({ x, z, cell, kind, scale: 0.7 + random() * 0.7, rotation: random() * Math.PI * 2 });
   }
-  return { cells: [...original.cells, ...cells], sites: [...original.sites, ...sites], expanded: true };
+  const allCells = [...original.cells, ...cells];
+  return { cells: allCells, sites: [...original.sites, ...sites, ...seedbankSites(allCells, seed, 20.1, 19.3, 240, 0x5eedba5)], expanded: true };
 }
