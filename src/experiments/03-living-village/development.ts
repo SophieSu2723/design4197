@@ -5,10 +5,11 @@ import { extendLandscape, riverX, VegetationSite } from './landscape';
 export const shopPosition = { x: 25, z: 6.5 };
 export const shopDoor = { x: 25, z: 9 };
 export const bridgeRepairPoint = { x: riverX(9.5) - 5.5, z: 9.5 };
+export const shopSupply = { capacity: 12, batchSize: 4, reserveFloor: 4 };
 export interface PlantDamage { fallen: boolean; damage: number; recovery: number; day: number }
 export interface Development {
   expanded: boolean;
-  shop: { requested: boolean; work: number; integrity: number; stock: number; visits: number; served: number; lastWorkDay: number };
+  shop: { requested: boolean; work: number; integrity: number; stock: number; visits: number; served: number; lastWorkDay: number; lastDelivery?: { day: number; amount: number } };
   bridgeIntegrity: number;
   windMaxKph: number; stormChance: number; queuedStorm: boolean; windKph: number;
   plantDamage: Record<string, PlantDamage>;
@@ -21,6 +22,16 @@ export const developmentOf = (world: WorldState) => world.development ?? initial
 export const plantKey = (site: Pick<VegetationSite, 'x' | 'z'>) => `${site.x.toFixed(3)},${site.z.toFixed(3)}`;
 export const bridgeOpen = (world: WorldState) => developmentOf(world).bridgeIntegrity >= 0.55 && world.ecology.riverLevel <= 1.2;
 export const shopOpen = (world: WorldState) => { const d = developmentOf(world); return d.shop.work >= 2 && d.shop.integrity >= 0.55 && d.windKph < 55; };
+export function deliveryBlock(world: WorldState): string | null {
+  if (developmentOf(world).shop.work < 2) return 'Delivery waits for the shop to be built.';
+  if (!bridgeOpen(world)) return 'Delivery waits for the bridge to reopen.';
+  if (!shopOpen(world)) return 'Delivery waits for the shop to reopen.';
+  if ((world.weather?.rainfallMm ?? 0) >= 5) return 'Delivery waits for a drier day.';
+  return null;
+}
+export function farmLoad(world: WorldState) {
+  return Math.max(0, Math.min(shopSupply.batchSize, shopSupply.capacity - developmentOf(world).shop.stock, world.population.foodReserve - shopSupply.reserveFloor));
+}
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
 function roll(seed: number, day: number, salt: number) {
   let n = (seed ^ Math.imul(day + 1, 2654435761) ^ Math.imul(salt + 1, 2246822519)) >>> 0;
@@ -80,12 +91,8 @@ export function developmentDay(world: WorldState, windKph: number): WorldState {
     if (d.bridgeIntegrity < 0.55) notes.push('Bridge closed by damage. Su repairs it on subsequent calm, low-water days.');
     if (d.shop.requested && d.shop.integrity < 0.55) notes.push('Shop work and trade suspended until repairs are completed.');
   }
-  // Restocking transfers existing food; no food is created by opening a shop.
-  const supply = d.shop.work >= 2 && d.shop.integrity >= 0.55 && windKph < 55 ? Math.min(4, 12 - d.shop.stock, Math.max(0, world.population.foodReserve - 4)) : 0;
-  d.shop.stock += supply;
-  if (supply > 0) notes.push(`${supply.toFixed(1)} food moved from village reserve to the shop.`);
   d.journal = [...d.journal, ...notes.map(text => ({ day: world.day, text }))].slice(-12);
-  return { ...world, development: d, plots, ecology: { ...world.ecology, cells }, population: { ...world.population, foodReserve: world.population.foodReserve - supply }, today: [...world.today, ...notes.map(description => ({ day: world.day, time: '24:00', type: 'action' as const, description }))] };
+  return { ...world, development: d, plots, ecology: { ...world.ecology, cells }, today: [...world.today, ...notes.map(description => ({ day: world.day, time: '24:00', type: 'action' as const, description }))] };
 }
 export function workDestination(world: WorldState): { target: LocationType; position: { x: number; z: number }; goal: string } | null {
   const d = developmentOf(world);
@@ -97,17 +104,38 @@ export function workDestination(world: WorldState): { target: LocationType; posi
 /** Called only by a completed, distinct arrival. Construction cannot advance from a plan alone. */
 export function developmentArrival(world: WorldState, person: VillagerState, target: LocationType | undefined) {
   let d = developmentOf(world), actor = person;
+  let foodReserve = world.population.foodReserve;
   const events: WorldEvent[] = [];
   const say = (description: string) => { events.push({ day: world.day, time: 'Arrival', type: 'action', actorId: person.id, description }); d = { ...d, journal: [...d.journal, { day: world.day, text: description }].slice(-12) }; };
+  if (target === 'farm' && person.id === 'su' && person.deliveryLeg === 'pickup') {
+    const blocked = deliveryBlock(world);
+    const amount = blocked || person.cargoFood ? 0 : farmLoad(world);
+    if (amount > 0) {
+      foodReserve -= amount;
+      actor = { ...person, cargoFood: amount };
+      say(`Su picked up ${amount.toFixed(1)} food at the farm.`);
+    }
+  }
   if (target === 'bridge' && person.id === 'su' && d.windKph < 40 && (world.weather?.rainfallMm ?? 0) < 5 && world.ecology.riverLevel <= 1.2) {
     d = { ...d, bridgeIntegrity: Math.min(1, d.bridgeIntegrity + 0.35) }; say(`Su repaired the bridge to ${Math.round(d.bridgeIntegrity * 100)}% integrity.`);
   }
   if (target === 'shop' && d.shop.requested) {
     d = { ...d, shop: { ...d.shop, visits: d.shop.visits + 1 } };
-    if (person.id === 'su' && d.windKph < 40 && (world.weather?.rainfallMm ?? 0) < 5 && d.shop.lastWorkDay !== world.day && (d.shop.work < 2 || d.shop.integrity < 1)) {
+    if (person.id === 'su' && person.deliveryLeg === 'dropoff') {
+      const blocked = deliveryBlock(world);
+      const amount = blocked ? 0 : Math.max(0, Math.min(person.cargoFood ?? 0, shopSupply.capacity - d.shop.stock));
+      if (amount > 0) {
+        d.shop.stock += amount;
+        d.shop.lastDelivery = { day: world.day, amount };
+        actor = { ...person, cargoFood: (person.cargoFood ?? 0) - amount };
+        say(`Su delivered ${amount.toFixed(1)} food to the community shop.`);
+      } else if ((person.cargoFood ?? 0) > 0) {
+        actor = { ...person, currentGoal: 'Delivery postponed', taskReason: blocked ?? 'The shop shelves are full.' };
+      }
+    } else if (person.id === 'su' && d.windKph < 40 && (world.weather?.rainfallMm ?? 0) < 5 && d.shop.lastWorkDay !== world.day && (d.shop.work < 2 || d.shop.integrity < 1)) {
       d.shop.lastWorkDay = world.day;
       if (d.shop.integrity < 1) { d.shop.integrity = Math.min(1, d.shop.integrity + 0.4); say(`Su repaired the shop to ${Math.round(d.shop.integrity * 100)}% integrity.`); }
-      else { d.shop.work = Math.min(2, d.shop.work + 1); say(d.shop.work === 2 ? 'Su completed the shop. It opens for visits; harvest surplus supplies its shelves.' : 'Su completed the shop frame: 1 of 2 work visits.'); }
+      else { d.shop.work = Math.min(2, d.shop.work + 1); say(d.shop.work === 2 ? 'Su completed the shop. Su can now deliver surplus harvest to its shelves.' : 'Su completed the shop frame: 1 of 2 work visits.'); }
     } else if (shopOpen({ ...world, development: d })) {
       const served = d.shop.stock >= 1;
       d.shop.stock -= served ? 1 : 0; d.shop.served += served ? 1 : 0;
@@ -115,5 +143,5 @@ export function developmentArrival(world: WorldState, person: VillagerState, tar
       say(served ? `${person.name} collected a meal at the shop: stock −1, energy +18 points (capped at 100).` : `${person.name} visited the shop; empty shelves offered company but no meal.`);
     }
   }
-  return { development: d, actor, events };
+  return { development: d, actor, events, foodReserve };
 }

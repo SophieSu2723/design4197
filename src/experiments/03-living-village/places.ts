@@ -6,7 +6,7 @@ export const easternPlaces = [
   { id: 'lookout' as const, extension: true, name: 'Wind lookout', position: { x: 34, z: -6 }, color: '#a9cbd1', description: 'A high clearing where wind leaves stronger traces.' },
 ];
 export type EasternPlace = typeof easternPlaces[number]['id'];
-export const placeNames = { home: 'Home', bakery: 'Bakery', farm: 'Su’s farm', river: 'River bank', path: 'Village path', clearing: 'Fern clearing', ruins: 'Old stone garden', ridge: 'Meadow ridge', lookout: 'Wind lookout', shop: 'Community shop', bridge: 'Bridge repair site' };
+export const placeNames = { home: 'Home', bakery: 'Bakery', farm: 'Su’s farm', river: 'River bank', path: 'Village path', clearing: 'Fern clearing', ruins: 'Old stone garden', ridge: 'Meadow ridge', lookout: 'Wind lookout', shop: 'Community shop', bridge: 'Bridge repair site', forage: 'Wild food patch' };
 export const isMemoryPlace = (target: string | undefined): target is 'farm' | 'river' | 'path' | 'shop' | EasternPlace =>
   target === 'farm' || target === 'river' || target === 'path' || target === 'shop' || isEasternPlace(target);
 export const isEasternPlace = (target: string | undefined): target is EasternPlace => easternPlaces.some(p => p.id === target);

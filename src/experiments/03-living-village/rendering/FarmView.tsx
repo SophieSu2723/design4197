@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { WorldState } from '../simulation';
-import { Point, walkingHeight, bridgeZ } from '../population';
+import { Point, walkingHeight, bridgeZ, VillagerState } from '../population';
 import { farmPosition, housePosition, riverX, riverBed, terrainHeight } from '../landscape';
 import { createTerrainMesh, updateTerrainColors } from './terrain';
 import { createWaterMesh, updateRiverSurface } from './water';
 import { createVegetation, grassGeometry, updateVegetation, VegetationRenderEntry, animateVegetation } from './vegetation';
 import { createLandmarks, updateLandmarks, updateWalkedPaths, LandmarkEntries } from './exploration';
-import { trailFootprint } from '../trails';
+import { followsWornTrail, trailFootprint } from '../trails';
+import { foragingRules } from '../foraging';
 import { developmentOf } from '../development';
 import { drawDevelopment } from './development';
 
@@ -20,29 +21,66 @@ interface SceneState {
   walkedPaths: THREE.Mesh; landmarks: LandmarkEntries;
   infrastructure: THREE.Group; bridgePlanks: THREE.Mesh[];
 }
-export type CameraView = 'overview' | 'su' | 'mina' | 'east' | 'ridge';
+export type CameraView = 'overview' | 'su' | 'mina' | 'east' | 'ridge' | 'free';
+export type DragMode = 'move' | 'orbit';
 function dispose(root: THREE.Object3D) {
   const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
   root.traverse(object => { if (object instanceof THREE.Line) { geometries.add(object.geometry); materials.add(object.material as THREE.Material); } if (object instanceof THREE.Sprite) { object.material.map?.dispose(); materials.add(object.material); } if (object instanceof THREE.Mesh) { geometries.add(object.geometry); (Array.isArray(object.material) ? object.material : [object.material]).forEach(m => materials.add(m)); } });
   geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose());
 }
-export default function FarmView({ world, selected, onSelect, wireframe = false, showTarget = false, showSoil = false, showTrails = true, cameraView = 'overview', resetKey = 0, onPlace }: { world: WorldState; selected: number; onSelect: (id: number) => void; wireframe?: boolean; showTarget?: boolean; showSoil?: boolean; showTrails?: boolean; cameraView?: CameraView; resetKey?: number; onPlace?: (point: Point) => void }) {
+interface FarmViewProps {
+  world: WorldState;
+  selected: number;
+  onSelect: (id: number) => void;
+  selectedResident?: VillagerState['id'];
+  onSelectResident: (id: VillagerState['id']) => void;
+  wireframe?: boolean;
+  showTarget?: boolean;
+  showSoil?: boolean;
+  showTrails?: boolean;
+  cameraView?: CameraView;
+  dragMode?: DragMode;
+  onManualCamera?: () => void;
+  resetKey?: number;
+  onPlace?: (point: Point) => void;
+}
+
+export default function FarmView({ world, selected, onSelect, selectedResident, onSelectResident, wireframe = false, showTarget = false, showSoil = false, showTrails = true, cameraView = 'overview', dragMode = 'move', onManualCamera, resetKey = 0, onPlace }: FarmViewProps) {
   const host = useRef<HTMLDivElement>(null), view = useRef<SceneState | null>(null);
   const selectRef = useRef(onSelect); selectRef.current = onSelect;
+  const selectResidentRef = useRef(onSelectResident); selectResidentRef.current = onSelectResident;
   const placementRef = useRef({ active: world.population.placementMode, onPlace }); placementRef.current = { active: world.population.placementMode, onPlace };
   const settlement = world.population.settlement;
   const [error, setError] = useState(false);
   const landscape = world.landscape;
   const worldRef = useRef(world); worldRef.current = world;
   const cameraViewRef = useRef(cameraView); cameraViewRef.current = cameraView;
+  const manualCameraRef = useRef(onManualCamera); manualCameraRef.current = onManualCamera;
+  const lastCamera = useRef<{ position: THREE.Vector3; target: THREE.Vector3 } | null>(null);
   useEffect(() => {
     const container = host.current!; let renderer: THREE.WebGLRenderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch { setError(true); return; }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.domElement.setAttribute('aria-label', 'Living valley: drag to orbit, scroll to zoom, right-drag to pan, click farm plots to select'); container.appendChild(renderer.domElement);
+    renderer.domElement.setAttribute('aria-label', 'Living valley map. Click a resident or farm plot to inspect.');
+    renderer.domElement.setAttribute('aria-describedby', 'village-map-caption');
+    container.appendChild(renderer.domElement);
     const scene = new THREE.Scene(); scene.background = new THREE.Color('#10191d'); scene.fog = new THREE.Fog('#10191d', landscape.expanded ? 75 : 48, landscape.expanded ? 150 : 105);
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 200); camera.position.set(32, 31, 40);
-    const controls = new OrbitControls(camera, renderer.domElement); controls.enableDamping = true; controls.target.set(-2, 1, 0); controls.minDistance = 8; controls.maxDistance = 110; controls.maxPolarAngle = Math.PI * 0.48; controls.update();
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.screenSpacePanning = false;
+    controls.zoomToCursor = true;
+    controls.target.set(-2, 1, 0);
+    controls.minDistance = 8;
+    controls.maxDistance = 150;
+    controls.maxPolarAngle = Math.PI * 0.48;
+    controls.cursor.set(landscape.expanded ? 8 : -2, 1, 0);
+    controls.maxTargetRadius = 75;
+    if (cameraViewRef.current === 'free' && lastCamera.current) {
+      camera.position.copy(lastCamera.current.position);
+      controls.target.copy(lastCamera.current.target);
+    }
+    controls.update();
     scene.add(new THREE.HemisphereLight(0xe3fff9, 0x34464b, 1.7));
     const light = new THREE.DirectionalLight(0xffefd3, 2.4); light.position.set(-18, 30, 12); light.castShadow = true; light.shadow.mapSize.set(2048, 2048); Object.assign(light.shadow.camera, { left: -28, right: 28, top: 28, bottom: -28, far: 90 }); light.shadow.bias = -0.001; scene.add(light);
     const root = new THREE.Group(); scene.add(root);
@@ -90,10 +128,53 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     view.current = { root, terrain, water, crops, people, bakery, debug, vegetation, camera, controls, walkedPaths, landmarks, infrastructure, bridgePlanks };
     const resize = () => { const r = container.getBoundingClientRect(); renderer.setSize(r.width, r.height); camera.aspect = r.width / Math.max(1, r.height); camera.updateProjectionMatrix(); };
     const observer = new ResizeObserver(resize); observer.observe(container); resize();
-    const raycaster = new THREE.Raycaster(); let down = { x: 0, y: 0 };
-    const pointerDown = (e: PointerEvent) => { down = { x: e.clientX, y: e.clientY }; };
-    const pointerUp = (e: PointerEvent) => { if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return; const r = renderer.domElement.getBoundingClientRect(); raycaster.setFromCamera(new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -(e.clientY - r.top) / r.height * 2 + 1), camera); if (placementRef.current.active) { const ground = raycaster.intersectObject(terrain)[0]; if (ground) placementRef.current.onPlace?.({ x: ground.point.x, z: ground.point.z }); return; } const hit = raycaster.intersectObjects(crops.children, true)[0]; if (hit && typeof hit.object.userData.plotId === 'number') selectRef.current(hit.object.userData.plotId); };
+    const raycaster = new THREE.Raycaster();
+    let down: { x: number; y: number; id: number; canSelect: boolean; dragged: boolean } | null = null;
+    const manualCamera = () => {
+      if (cameraViewRef.current === 'free') return;
+      cameraViewRef.current = 'free';
+      manualCameraRef.current?.();
+    };
+    const pointerDown = (e: PointerEvent) => {
+      if (!e.isPrimary) {
+        if (down) down.canSelect = false;
+        if (e.pointerType === 'touch') manualCamera();
+        return;
+      }
+      down = { x: e.clientX, y: e.clientY, id: e.pointerId, canSelect: e.button === 0 && !e.shiftKey && !e.metaKey && !e.ctrlKey, dragged: false };
+    };
+    const pointerMove = (e: PointerEvent) => {
+      if (down?.id !== e.pointerId || down.dragged || Math.hypot(e.clientX - down.x, e.clientY - down.y) <= 5) return;
+      down.dragged = true;
+      renderer.domElement.style.cursor = 'grabbing';
+      manualCamera();
+    };
+    const clearPointer = () => { down = null; renderer.domElement.style.removeProperty('cursor'); };
+    const pointerUp = (e: PointerEvent) => {
+      const start = down;
+      if (!start || start.id !== e.pointerId) return;
+      clearPointer();
+      if (start.dragged || !start.canSelect || Math.hypot(e.clientX - start.x, e.clientY - start.y) > 5) return;
+      const bounds = renderer.domElement.getBoundingClientRect();
+      const pointer = new THREE.Vector2((e.clientX - bounds.left) / bounds.width * 2 - 1, 1 - (e.clientY - bounds.top) / bounds.height * 2);
+      raycaster.setFromCamera(pointer, camera);
+      if (placementRef.current.active) {
+        const ground = raycaster.intersectObject(terrain)[0];
+        if (ground) placementRef.current.onPlace?.({ x: ground.point.x, z: ground.point.z });
+        return;
+      }
+      let resident = raycaster.intersectObject(people, true)[0]?.object;
+      while (resident?.parent && resident.parent !== people) resident = resident.parent;
+      if (resident?.name === 'su' || resident?.name === 'mina') {
+        selectResidentRef.current(resident.name);
+        return;
+      }
+      const plot = raycaster.intersectObject(crops, true)[0]?.object.userData.plotId;
+      if (typeof plot === 'number') selectRef.current(plot);
+    };
     renderer.domElement.addEventListener('pointerdown', pointerDown); renderer.domElement.addEventListener('pointerup', pointerUp);
+    renderer.domElement.addEventListener('pointermove', pointerMove);
+    renderer.domElement.addEventListener('pointercancel', clearPointer);
     let previousTime = 0, visualTime = 0;
     renderer.setAnimationLoop((time: number) => {
       const dt = previousTime ? Math.min(0.1, (time - previousTime) / 1000) : 0; previousTime = time; visualTime += dt;
@@ -114,7 +195,17 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
       }
       controls.update(); renderer.render(scene, camera);
     });
-    return () => { observer.disconnect(); renderer.setAnimationLoop(null); controls.dispose(); renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointerup', pointerUp); rainGeometry.dispose(); (rain.material as THREE.Material).dispose(); flowGeometry.dispose(); (flow.material as THREE.Material).dispose(); dispose(root); renderer.dispose(); container.removeChild(renderer.domElement); view.current = null; };
+    return () => {
+      lastCamera.current = { position: camera.position.clone(), target: controls.target.clone() };
+      observer.disconnect(); renderer.setAnimationLoop(null); controls.dispose();
+      renderer.domElement.removeEventListener('pointerdown', pointerDown);
+      renderer.domElement.removeEventListener('pointerup', pointerUp);
+      renderer.domElement.removeEventListener('pointermove', pointerMove);
+      renderer.domElement.removeEventListener('pointercancel', clearPointer);
+      rainGeometry.dispose(); (rain.material as THREE.Material).dispose();
+      flowGeometry.dispose(); (flow.material as THREE.Material).dispose();
+      dispose(root); renderer.dispose(); container.removeChild(renderer.domElement); view.current = null;
+    };
   }, [landscape]);
   useEffect(() => {
     const state = view.current; if (!state) return;
@@ -157,24 +248,72 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
         const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.42, 4, 8), material(person.id === 'su' ? '#769d91' : '#b19b72')); body.position.y = 0.55; body.castShadow = true; actor.add(body);
         const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), material('#c7ad91')); head.position.y = 1; actor.add(head);
         const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.25, 0.07, 12), material(person.id === 'su' ? '#aa9c70' : '#d3cabb')); hat.position.y = 1.12; actor.add(hat);
+        if (person.id === 'su') {
+          const crate = new THREE.Mesh(new THREE.BoxGeometry(0.47, 0.34, 0.34), material('#d6a862'));
+          crate.name = 'delivery-crate';
+          crate.position.set(0, 0.52, 0.3);
+          crate.castShadow = true;
+          // Hidden cargo must not intercept resident clicks.
+          crate.raycast = () => {};
+          actor.add(crate);
+        }
         const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 48;
         const ctx = canvas.getContext('2d'); if (ctx) { ctx.fillStyle = '#0e171bdd'; ctx.fillRect(0, 0, 128, 48); ctx.font = '22px monospace'; ctx.textAlign = 'center'; ctx.fillStyle = '#d8e1df'; ctx.fillText(person.name, 64, 32); }
         const texture = new THREE.CanvasTexture(canvas), label = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false })); label.position.y = 1.65; label.scale.set(1.25, 0.47, 1); actor.add(label); state.people.add(actor);
       }
       actor.position.set(person.position.x, walkingHeight(person.position), person.position.z);
+      const crate = actor.getObjectByName('delivery-crate');
+      if (crate) crate.visible = (person.cargoFood ?? 0) > 0 || (person.wildFood ?? 0) > 0;
       const next = person.route[0]; if (next) actor.rotation.y = Math.atan2(next.x - person.position.x, next.z - person.position.z);
     });
   }, [world.population, landscape]);
-  // Diagnostic only: Mina's remaining route and chosen target, read from simulation state.
+  // Selection and route overlays read the same live state as the inspector.
   useEffect(() => {
     const state = view.current; if (!state) return; dispose(state.debug); state.debug.clear();
-    const mina = world.population.mina, target = mina?.activity?.targetPosition;
-    if (!showTarget || !mina || !target) return;
-    const lift = (p: Point) => new THREE.Vector3(p.x, walkingHeight(p) + 0.2, p.z), color = '#e0c46c';
-    const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([mina.position, ...mina.route].map(lift)), new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.85 }));
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.48, 24), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.85 }));
-    ring.rotation.x = -Math.PI / 2; ring.position.copy(lift(target)); line.renderOrder = ring.renderOrder = 10; state.debug.add(line, ring);
-  }, [world.population, showTarget, landscape]);
+    const person = selectedResident ? world.population[selectedResident] : world.population.mina;
+    if (!person) return;
+    const lift = (p: Point) => new THREE.Vector3(p.x, walkingHeight(p) + 0.2, p.z);
+    const addRing = (p: Point, radius: number, color: string) => {
+      const ring = new THREE.Mesh(new THREE.RingGeometry(radius, radius + 0.12, 24), new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.9 }));
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.copy(lift(p));
+      ring.renderOrder = 10;
+      state.debug.add(ring);
+    };
+    if (selectedResident) addRing(person.position, 0.52, '#91efcb');
+    if (!showTarget) return;
+    if (selectedResident === 'su') {
+      const sensor = Array.from({ length: 40 }, (_, i) => {
+        const angle = i * Math.PI / 20, radius = foragingRules.senseRadius;
+        return lift({ x: person.position.x + Math.cos(angle) * radius, z: person.position.z + Math.sin(angle) * radius });
+      });
+      const outline = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(sensor), new THREE.LineBasicMaterial({ color: '#91efcb', depthTest: false, transparent: true, opacity: 0.5 }));
+      outline.renderOrder = 10;
+      state.debug.add(outline);
+    }
+    const target = person.destination ?? person.activity?.targetPosition;
+    if (target && (person.routeIssue || person.route.length > 0 || !selectedResident)) {
+      addRing(target, 0.35, person.routeIssue ? '#ed9a7c' : '#e0c46c');
+    }
+    if (person.route.length > 0) {
+      const geometry = new THREE.BufferGeometry();
+      const positions: THREE.Vector3[] = [], colors: number[] = [];
+      const ordinary = new THREE.Color('#e0c46c'), worn = new THREE.Color('#91efcb');
+      let from = person.position;
+      for (const to of person.route) {
+        const trails = world.population.trails;
+        const color = trails && followsWornTrail(trails, from, to) ? worn : ordinary;
+        positions.push(lift(from), lift(to));
+        colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+        from = to;
+      }
+      geometry.setFromPoints(positions);
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      const line = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, transparent: true, opacity: 0.9 }));
+      line.renderOrder = 10;
+      state.debug.add(line);
+    }
+  }, [world.population, selectedResident, showTarget, landscape]);
   useEffect(() => {
     const state = view.current; if (!state) return; dispose(state.bakery); state.bakery.clear();
     if (!settlement) return;
@@ -189,16 +328,30 @@ export default function FarmView({ world, selected, onSelect, wireframe = false,
     add(new THREE.BoxGeometry(2.2, 0.15, 0.75), '#8c7b5e', 0, 0.35, 1.7);
   }, [settlement, landscape]);
   useEffect(() => { if (view.current) (view.current.terrain.material as THREE.MeshStandardMaterial).wireframe = wireframe; }, [wireframe, landscape]);
-  useEffect(() => { if (view.current) { const expanded = worldRef.current.landscape.expanded; view.current.camera.position.set(expanded ? 52 : 32, expanded ? 42 : 31, expanded ? 52 : 40); view.current.controls.target.set(expanded ? 8 : -2, expanded ? 3 : 1, 0); view.current.controls.update(); } }, [resetKey]);
   useEffect(() => {
-    const state = view.current; if (!state) return;
+    const controls = view.current?.controls;
+    if (!controls) return;
+    controls.mouseButtons.LEFT = dragMode === 'move' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+    controls.mouseButtons.RIGHT = dragMode === 'move' ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+    controls.touches.ONE = dragMode === 'move' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+    controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+  }, [dragMode, landscape]);
+  useEffect(() => {
+    const state = view.current; if (!state || cameraView === 'free') return;
+    state.controls.enableDamping = false;
+    state.controls.update();
     const person = cameraView === 'su' ? worldRef.current.population.su : cameraView === 'mina' ? worldRef.current.population.mina : null;
     if (person) { const { x, z } = person.position; state.controls.target.set(x, walkingHeight(person.position) + 0.6, z); state.camera.position.copy(state.controls.target).add(new THREE.Vector3(10, 10, 13)); }
     else if (cameraView === 'ridge') { state.controls.target.set(27, 7, 6); state.camera.position.set(46, 31, 35); }
     else if (cameraView === 'east') { state.controls.target.set(12, 2, 5); state.camera.position.set(30, 26, 32); }
     else if (landscape.expanded) { state.controls.target.set(8, 3, 0); state.camera.position.set(52, 42, 52); }
     else { state.controls.target.set(-2, 1, 0); state.camera.position.set(32, 31, 40); }
+    if (cameraView === 'overview' && state.camera.aspect < 1.35) {
+      const offset = state.camera.position.clone().sub(state.controls.target);
+      state.camera.position.copy(state.controls.target).addScaledVector(offset, Math.min(2.2, 1.35 / state.camera.aspect));
+    }
     state.controls.update();
-  }, [cameraView, landscape]);
-  return <div className="noise-viewport" style={{ cursor: world.population.placementMode ? 'crosshair' : undefined }} ref={host}>{error && <p className="noise-webgl-error">WebGL is unavailable. World-state diagnostics and daily controls remain available.</p>}</div>;
+    state.controls.enableDamping = true;
+  }, [cameraView, landscape, resetKey]);
+  return <div className="noise-viewport" style={{ cursor: world.population.placementMode ? 'crosshair' : 'grab' }} ref={host}>{error && <p className="noise-webgl-error">WebGL is unavailable. World-state diagnostics and daily controls remain available.</p>}</div>;
 }

@@ -1,146 +1,245 @@
-/* Experiment-specific additions only. All layout, typography, controls and tokens are FIELD / LAB. */
-.development-panel{padding:22px 18px!important;background:#272d27;border:1px solid #7a8267!important;border-radius:8px}.village-app .development-panel h2{font-size:26px;line-height:1.2;letter-spacing:-.5px;text-transform:none;margin:12px 0 18px}.development-panel .memory-eyebrow{font-size:10px;letter-spacing:1px;color:#d2c69e}.development-panel p{font-size:14px;line-height:1.6;color:#ced4c6}.development-panel article{margin-top:18px;padding:16px;background:#18241f;border:1px solid #495747;border-radius:5px}.development-panel h3{font-size:17px;font-weight:500;margin-bottom:12px;color:#e1d4ae}.development-panel strong{display:block;font-size:16px;line-height:1.5}.development-panel small{display:block;font-size:12px;line-height:1.65;color:#b8c7b8;margin:10px 0}.development-panel button{font-size:14px;min-height:44px;width:100%;margin:10px 0 0;padding:10px;white-space:normal}.development-panel progress{width:100%;height:10px;accent-color:#b9bc87;margin-top:12px}.development-panel dl>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #34483b;padding:9px 0;font-size:13px}.development-panel dd{text-align:right;color:#e3d8b2}.development-panel .storm-queued{border-color:#c08f6b;color:#efbb92}.development-journal{margin-top:20px}.development-journal ol{font-size:13px;line-height:1.7;padding-left:20px}.development-journal li{margin-bottom:10px}.development-panel .noise-slider{margin-top:18px}
-.village-app.world-expanded .noise-layout{grid-template-columns:minmax(0,1fr)}.village-app.world-expanded .noise-controls{display:none}
-.exploration-panel{background:#202d28;padding:20px 16px!important;border:1px solid #4e6657!important;border-radius:8px}
-.village-app .exploration-panel h2{font-size:24px;text-transform:none;letter-spacing:-.5px;line-height:1.2;margin:10px 0 14px}
-.exploration-panel p{font-size:14px;line-height:1.6;color:#c5d0c5;margin:10px 0}.exploration-panel small{display:block;font-size:12px;line-height:1.6;color:#a9beb0}.exploration-panel .memory-eyebrow{font-size:10px;color:#bad0b6;letter-spacing:1px}
-.exploration-actions{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.exploration-actions button{font-size:13px;padding:11px;flex:1;min-height:44px}
-.travel-conditions{border-left:2px solid #be9f72;padding-left:12px}.travel-conditions.is-open{border-color:#9dc2a0}
-.exploration-reasons{padding:12px;background:#18251f;border-radius:4px}.exploration-reasons p{font-size:13px;margin-bottom:0}
-.exploration-places{display:grid;gap:12px;margin:16px 0}.exploration-places article{padding:14px;background:#15231e;border:1px solid #3c5246;border-radius:4px}.exploration-places h3{font-size:17px;font-weight:500}.exploration-places p{font-size:13px}.exploration-places article>div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:13px}.exploration-places strong{font-weight:500;color:#c3d7ad}.discovery-log{padding-left:18px;font-size:13px;line-height:1.7;margin-top:16px}
-.village-app .noise-main-title{top:14px;left:24px}.village-app .noise-main-title h2{font-size:22px;margin-top:6px}.village-app .noise-main-title p{display:none}
-.village-app .noise-scene-toolbar{top:80px;left:24px;right:24px}.village-app .noise-scene-toolbar>div{flex-wrap:wrap;gap:6px}.village-app .noise-scene-toolbar button{font-size:12px;min-height:36px}
-.camera-select{display:flex;align-items:center;gap:7px;background:#111b20e8;padding:5px 8px;font-size:12px;border:1px solid #384d51;border-radius:3px}.camera-select select{background:#1e2d27;color:#d4e2d6;border:0;font-size:12px;padding:4px}
-.world-playbar{position:absolute;left:16px;right:16px;bottom:302px;z-index:3;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 12px;background:#14271fed;border:1px solid #486252;border-radius:5px}.world-playbar span{font-size:12px;color:#bdd1bd}.world-playbar button{font-size:13px;flex-shrink:0}
-.village-app .noise-scene-footer{display:none}
-.control-effect{font-size:12px;line-height:1.55;color:#a7c1b7;margin:-5px 0 16px}
-.village-app .noise-scene{bottom:290px}
-.ecology-story{position:absolute;bottom:0;left:0;right:0;height:290px;overflow:auto;padding:18px 24px;background:#152421;border-top:1px solid #476056;z-index:2}
-.ecology-story header{display:flex;gap:12px;justify-content:space-between;align-items:center}.ecology-story h2{font-size:19px;font-weight:500}.ecology-story button{font-size:13px}.ecology-story>p{font-size:14px;line-height:1.6;margin:10px 0;color:#c1d1c9}
-.ecology-chain{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.ecology-chain article{border-left:2px solid #709f87;padding-left:12px}.ecology-chain b{font-size:12px;color:#9bbcab;text-transform:uppercase}.ecology-chain strong{display:block;font-size:17px;line-height:1.4;margin:6px 0}.ecology-chain span{font-size:12px;line-height:1.5;color:#adbbb5}.ecology-story .ecology-explanation{font-size:12px}
-.village-app .village-diagnostics{bottom:375px;max-height:180px}.village-app .village-visitor-notice{bottom:375px}
-@media(max-width:1100px){.ecology-chain{grid-template-columns:repeat(2,minmax(0,1fr))}.ecology-story h2{font-size:16px}.ecology-story{padding:14px}.village-app .village-diagnostics{max-height:100px}}
-@media(max-width:540px){.village-app .noise-layout .noise-main{min-height:950px}.ecology-story{height:350px}.village-app .noise-scene{bottom:350px}.world-playbar{bottom:362px;left:12px;right:12px;flex-wrap:wrap}.village-app .village-diagnostics{bottom:455px}.village-app .village-visitor-notice{bottom:455px;top:auto}}
-.village-app .noise-layout{grid-template-columns:390px minmax(0,1fr)}
-.village-app .farm-ecology h2{font-size:16px}.village-app .farm-ecology .noise-hint{font-size:14px}.farm-ecology .village-population-metrics>div{font-size:14px;padding:10px 0}.farm-ecology .noise-slider>span,.farm-ecology .noise-slider output{font-size:14px}
-.village-app .place-memory{padding:22px 18px;background:#192827;border:1px solid #48615a;border-radius:8px}
-.place-memory .memory-eyebrow{font-size:11px;letter-spacing:1.5px;color:var(--accent)}
-.village-app .place-memory h2{display:block;font-size:25px;line-height:1.2;text-transform:none;letter-spacing:-.6px;margin:10px 0 14px}
-.place-memory p{font-size:15px;line-height:1.6;color:#c3d2cc;margin:8px 0 14px}
-.place-memory button{width:100%;font-size:15px;padding:13px;text-align:left}
-.place-memory small{display:block;font-size:12px;line-height:1.6;color:#a7bab2;margin-top:12px}
-.memory-process{list-style:none;padding:0;margin:22px 0}
-.memory-process li{border-left:2px solid #719e87;padding:0 0 18px 16px}
-.memory-process li:last-child{padding-bottom:0}
-.memory-process li>span{display:block;font-size:11px;letter-spacing:1px;color:var(--accent);margin-bottom:7px}
-.memory-process strong{display:block;font-size:17px;line-height:1.4;font-weight:500}
-.memory-process p{font-size:14px;margin-bottom:0}
-.memory-places{display:grid;gap:12px}.memory-places article{padding:14px;background:#101c1c;border:1px solid #354b45;border-radius:5px}
-.memory-places header{display:flex;justify-content:space-between;align-items:center;gap:12px}.memory-places h3{font-size:17px;font-weight:500}.memory-places b{font-size:24px;color:var(--accent);font-weight:500}
-.memory-places progress{display:block;width:100%;height:10px;accent-color:#a4cbb0;margin:12px 0}.memory-places p{font-size:13px;margin-bottom:8px}.memory-places strong{font-size:14px;color:#c4dec9;font-weight:500}
-.memory-toggle{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;margin-top:20px}.memory-toggle input{width:18px;height:18px;flex-shrink:0;margin-top:2px;accent-color:#a4cbb0}
-@media(max-width:1000px) and (min-width:541px){.village-app .noise-layout{grid-template-columns:340px minmax(0,1fr)}}
-@media(max-width:540px){.village-app .place-memory{padding:20px}.village-app .noise-controls{width:100%}}
-.village-actions{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.village-actions button{font-size:10px;flex:1 1 100px}.village-app .noise-select input{display:block;width:100%;margin-top:8px;padding:7px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:3px}.village-mini-metrics{display:flex;justify-content:space-between;gap:8px;font-size:9px;color:var(--muted);margin-top:16px}.village-mini-metrics b{display:block;color:var(--text);font-weight:400;margin-top:4px}.village-diagnostics{width:290px;max-height:calc(100% - 180px);overflow:auto}.village-diagnostics dl>div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:10px}.village-diagnostics dt{color:var(--muted)}.village-diagnostics dd{color:var(--text);font-variant-numeric:tabular-nums;text-align:right}.village-today{margin-top:16px}.village-today h3{font-size:9px;letter-spacing:1.4px;color:var(--accent);margin-bottom:10px}.village-today p{display:flex;gap:9px;font-size:9px;line-height:1.7;color:var(--muted);margin:7px 0}.village-today time{color:var(--accent);flex-shrink:0}.village-today small{font-size:8px;color:var(--muted)}.village-records{position:absolute;z-index:5;inset:155px 24px 45px;background:#141b1ef5;border:1px solid var(--line);border-radius:4px;padding:18px;display:flex;flex-direction:column;backdrop-filter:blur(12px)}.village-record-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.village-record-heading h2{font-size:12px;margin-right:auto}.village-record-heading button{font-size:10px}.village-table-scroll{overflow:auto;flex:1;margin-top:10px}.village-table-scroll table{border-collapse:collapse;width:100%;white-space:nowrap;font-size:10px}.village-table-scroll th,.village-table-scroll td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}.village-table-scroll th{position:sticky;top:0;background:var(--panel);color:var(--accent)}@media(max-width:700px){.village-diagnostics{width:auto;max-width:270px;max-height:45%}.village-diagnostics dl>div{font-size:9px;flex-wrap:wrap}.village-records{left:12px;right:12px;padding:10px}.village-app .noise-scene-toolbar>div{flex-wrap:wrap}}@media(max-width:540px){.village-app .noise-layout{display:flex;flex-direction:column;overflow:auto}.village-app .noise-main{order:-1;min-height:650px;height:75dvh;flex-shrink:0}.village-app .noise-controls{height:auto;overflow:visible;border-right:0;border-top:1px solid var(--line)}.village-diagnostics{width:260px;max-height:60%;bottom:40px}.village-app .noise-main-title h2{max-width:none}.village-app .noise-main-title p{max-width:none}}
-.village-population-metrics>div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:10px}.village-population-metrics dt{color:var(--muted)}.village-population-metrics dd{text-align:right}.village-visitor-notice{position:absolute;right:24px;bottom:50px;z-index:3;max-width:310px;padding:12px;background:#141b1ef0;border:1px solid var(--line);font-size:11px;color:var(--accent)}.village-visitor-notice button{display:block;margin-top:9px}@media(max-width:700px){.village-visitor-notice{top:165px;bottom:auto;left:14px;right:14px;font-size:10px}}
+.village-app {
+  --village-surface: #151e20;
+  --village-card: #192627;
+  --village-muted: #a3b6af;
+  --village-border: #354845;
+  --village-accent: #9ce4bd;
+  font-size: 13px;
+}
 
-.village-app .noise-layout{grid-template-columns:340px minmax(0,1fr)}
-.village-app .noise-controls{padding:16px 16px 22px;font-size:11px;line-height:1.45}
-.village-app .noise-intro{padding-bottom:0}
-.village-app .noise-intro h1{font-size:21px;margin:6px 0 3px}
-.village-app .noise-controls section{margin-top:15px;padding-top:13px}
-.village-app .noise-controls h2{font-size:11px;margin-bottom:9px}
-.village-app .noise-controls .noise-hint{font-size:10px;line-height:1.5;margin:6px 0}
-.village-app .noise-controls .noise-slider{margin:10px 0}
-.village-app .noise-controls .noise-slider>span,.village-app .noise-controls .noise-slider output{font-size:10px}
-.village-app .noise-controls .control-effect{font-size:10px;line-height:1.4;margin:-3px 0 9px}
-.sidebar-sections{position:sticky;top:-16px;z-index:4;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:9px 0;background:#141b1e;border-bottom:1px solid var(--line)}
-.sidebar-sections button{padding:8px 4px;font-size:10px;white-space:nowrap;color:#aab8b6}
-.sidebar-sections button[aria-pressed="true"]{background:#1d3933;border-color:#589483;color:#95e0c3}
-.sidebar-persistence-note{font-size:9px!important;opacity:.72}
-.selected-plot{margin-top:10px;padding:12px;background:#101b1b;border:1px solid #385249;border-radius:5px}
-.selected-plot-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.selected-plot-heading strong{font-size:13px}.selected-plot-heading span{font-size:10px;color:#a8c9a8}
-.selected-plot label{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#b8c7c7}
-.selected-plot label output{color:var(--accent)}
-.selected-plot progress{display:block;width:100%;height:7px;margin:7px 0 12px;accent-color:#83c9a2}
-.selected-plot-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:9px;color:#8da19a}
-.selected-plot-facts b{display:block;font-size:10px;font-weight:500;color:#d6e0d9;margin-top:2px}
-.plot-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
-.plot-actions button{min-height:34px;padding:6px;font-size:10px}
-.farm-summary{margin-top:12px}
-.farm-summary>div{padding:7px 0!important;font-size:10px!important}
-.farm-summary dd{max-width:56%;font-variant-numeric:tabular-nums}
-.farm-summary-details{margin-top:12px;border:1px solid var(--line);border-radius:4px;padding:9px 10px}
-.farm-summary-details summary{cursor:pointer;color:#b9d1c5;font-size:10px}
-.bulk-plot-actions{margin-top:10px}
-.crop-rules{margin-top:14px;border:1px solid var(--line);border-radius:4px;padding:9px 10px}
-.crop-rules summary{cursor:pointer;color:#b9d1c5;font-size:10px}
-.crop-rules .ecology-control:first-child{margin-top:12px}
-.farm-ecology h2{font-size:14px!important}
-.village-app .farm-ecology .noise-hint{font-size:10px}
-.village-app .farm-ecology .village-population-metrics>div{font-size:10px;padding:7px 0}
-.village-app .farm-ecology .noise-slider>span,.village-app .farm-ecology .noise-slider output{font-size:10px}
-.development-panel{padding:14px 12px!important}
-.village-app .development-panel h2{font-size:19px;margin:8px 0 12px}
-.development-panel p{font-size:11px;line-height:1.45}
-.development-panel article{margin-top:12px;padding:11px}
-.development-panel h3{font-size:13px;margin-bottom:8px}
-.development-panel strong{font-size:12px}
-.development-panel small{font-size:10px;line-height:1.45;margin:7px 0}
-.development-panel button{font-size:11px;min-height:36px;margin-top:7px;padding:7px}
-.development-panel dl>div{padding:6px 0;font-size:10px}
-.development-panel .noise-slider{margin-top:12px}
-.place-memory,.exploration-panel{padding:14px 12px!important}
-.village-app .place-memory h2,.village-app .exploration-panel h2{font-size:18px;line-height:1.25;margin:7px 0 9px}
-.place-memory p,.exploration-panel p{font-size:11px;line-height:1.45;margin:6px 0 9px}
-.place-memory button,.exploration-actions button{font-size:11px;min-height:36px;padding:8px}
-.place-memory small,.exploration-panel small{font-size:10px;line-height:1.45}
-.memory-process{margin:14px 0}
-.memory-process li{padding-bottom:12px;padding-left:12px}
-.memory-process strong{font-size:13px}
-.memory-process p{font-size:11px}
-.memory-places{grid-template-columns:1fr 1fr;gap:7px}
-.memory-places article{padding:9px}
-.memory-places h3{font-size:11px}
-.memory-places b{font-size:16px}
-.memory-places p,.memory-places strong{font-size:10px}
-.exploration-places{grid-template-columns:1fr 1fr;gap:7px}
-.exploration-places article{padding:9px}
-.exploration-places h3{font-size:12px}
-.exploration-places p,.exploration-places article>div{font-size:10px}
-.ecology-story{height:158px;overflow:hidden;padding:10px 16px}
-.ecology-story header{flex-wrap:nowrap}
-.ecology-story h2{font-size:13px;white-space:nowrap}
-.ecology-story>p{font-size:10px;line-height:1.35;margin:5px 0}
-.ecology-story button{font-size:9px;padding:6px 7px;white-space:nowrap}
-.ecology-chain{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
-.ecology-chain article{padding-left:8px}
-.ecology-chain b,.ecology-chain span{font-size:9px;line-height:1.35}
-.ecology-chain strong{font-size:12px;margin:2px 0}
-.ecology-chain span,.ecology-story .ecology-explanation{display:none}
-.village-app .noise-scene{bottom:158px}
-.world-playbar{bottom:168px;padding:6px 9px}
-.world-playbar span{font-size:10px}
-.world-playbar button{font-size:11px;padding:6px 8px}
-.village-app .village-diagnostics{bottom:228px;max-height:140px}
-.village-app .village-visitor-notice{bottom:228px}
-@media(max-width:1000px) and (min-width:541px){.village-app .noise-layout{grid-template-columns:300px minmax(0,1fr)}}
-@media(max-width:720px){.ecology-story{height:188px}.village-app .noise-scene{bottom:188px}.world-playbar{bottom:198px}.village-app .village-diagnostics{bottom:252px;max-height:110px}.village-app .village-visitor-notice{bottom:252px}.ecology-chain{grid-template-columns:repeat(2,minmax(0,1fr))}.ecology-story h2{font-size:12px}}
-@media(max-width:540px){.village-app .noise-layout{display:flex;flex-direction:column;overflow:auto}.village-app .noise-main{order:-1;min-height:0;height:72dvh;flex-shrink:0}.village-app .noise-controls{height:auto;overflow:visible;border-right:0;border-top:1px solid var(--line);width:100%}.sidebar-sections{top:0}.ecology-story{height:188px}.village-app .noise-scene{bottom:188px}.world-playbar{bottom:198px}.village-app .village-diagnostics{bottom:252px}.village-app .village-visitor-notice{bottom:auto;top:455px}}
+.village-layout {
+  display: grid;
+  grid-template-columns: clamp(270px, 23vw, 320px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
 
-/* The causal explanation is part of the work: keep it readable as the world grows. */
-.village-app .ecology-story{height:252px;overflow-y:auto;padding:16px 20px}
-.village-app .ecology-story h2{font-size:17px;white-space:normal}
-.village-app .ecology-story>p{font-size:12px;line-height:1.5}
-.village-app .ecology-story button{font-size:11px}
-.village-app .ecology-chain{grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-.village-app .ecology-chain b{font-size:11px}
-.village-app .ecology-chain strong{font-size:15px;overflow-wrap:anywhere}
-.village-app .ecology-chain span,.village-app .ecology-story .ecology-explanation{display:block;font-size:11px;line-height:1.45}
-.village-app .noise-scene{bottom:252px}
-.village-app .world-playbar{bottom:264px}
-.village-app .village-diagnostics,.village-app .village-visitor-notice{bottom:322px}
-@media(max-width:1200px){.village-app .ecology-chain{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:720px){.village-app .ecology-story{height:300px}.village-app .ecology-chain{grid-template-columns:repeat(2,minmax(0,1fr))}.village-app .noise-scene{bottom:300px}.village-app .world-playbar{bottom:312px}.village-app .village-diagnostics,.village-app .village-visitor-notice{bottom:370px}}
-@media(max-width:540px){.village-app .noise-main{height:760px;min-height:760px}.village-app .ecology-story{height:310px}.village-app .noise-scene{bottom:310px}.village-app .world-playbar{bottom:322px}.village-app .village-diagnostics{bottom:380px}.village-app .village-visitor-notice{top:120px;bottom:auto}}
+.village-layout-wide { grid-template-columns: minmax(0, 1fr); }
+.village-sidebar {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--village-surface);
+  border-right: 1px solid var(--village-border);
+  scrollbar-width: thin;
+  scrollbar-color: #415a52 var(--village-surface);
+}
+
+.village-panel-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 12px 14px 10px;
+  background: var(--village-surface);
+  border-bottom: 1px solid var(--village-border);
+}
+
+.village-app .village-panel-tabs button {
+  min-height: 38px;
+  color: var(--village-muted);
+  background: transparent;
+  border-color: transparent;
+}
+
+.village-app button[aria-pressed="true"] {
+  color: var(--village-accent);
+  border-color: #5b8b75;
+  background: #233b32;
+}
+
+.village-panel-body { padding: 16px 15px 25px; }
+.village-panel-body h2 { font-size: 19px; font-weight: 550; margin: 0 0 10px; }
+.village-panel-body h3 { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+.village-panel-hint { color: var(--village-muted); font-size: 12px; line-height: 1.55; margin: 7px 0; }
+.village-panel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.village-panel-heading > :is(h2, h3) { margin-bottom: 4px; }
+.village-panel-heading > button { font-size: 11px; }
+.village-card, .resident-inspector, .village-notice {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--village-border);
+  border-radius: 6px;
+  background: var(--village-card);
+}
+
+.village-notice { border-color: #678879; }
+.village-notice p { margin: 0 0 8px; }
+.village-inline-error, .resident-route-blocked { color: #f5b89d; }
+.village-inline-error { margin: 8px 0; }
+.village-state-label { color: var(--village-accent); font-size: 11px; text-align: right; }
+.village-state-label.warning { color: #f3b296; }
+.village-app .village-text-button { margin-top: 8px; border-color: transparent; background: transparent; color: var(--village-accent); padding: 4px 0; }
+.village-app .village-text-button:hover { text-decoration: underline; }
+.village-card progress { display: block; width: 100%; height: 8px; margin: 9px 0; accent-color: var(--village-accent); }
+
+.village-resident-picker, .village-action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.village-resident-picker button { text-align: left; }
+.village-resident-picker small { display: block; color: var(--village-muted); font-size: 11px; }
+.village-action-grid button { min-width: 0; padding: 7px; font-size: 12px; }
+.village-fold { margin-top: 10px; border-top: 1px solid var(--village-border); }
+.village-fold > summary { padding: 10px 0; cursor: pointer; color: #c8d9d2; font-size: 12px; }
+.village-fold > summary::marker { color: var(--village-accent); }
+.village-fold[open] { padding-bottom: 6px; }
+
+.village-sidebar .noise-slider { margin: 15px 0 17px; }
+.village-sidebar .noise-slider:first-child { margin-top: 6px; }
+.village-sidebar .noise-slider > span, .village-sidebar .noise-slider output { font-size: 12px; }
+.village-sidebar .noise-slider input { height: auto; margin-top: 5px; }
+.village-check { display: flex; gap: 7px; align-items: flex-start; margin: 8px 0; }
+.village-check input { margin-top: 3px; }
+.village-seed { display: grid; gap: 5px; margin: 8px 0; font-size: 12px; }
+.village-seed input, .village-toolbar-field select {
+  min-width: 0;
+  color: var(--text);
+  border: 1px solid var(--village-border);
+  border-radius: 4px;
+  background: #0f191b;
+  padding: 6px 8px;
+}
+.village-facts, .resident-inspector-facts { margin: 5px 0; }
+.village-facts > div, .resident-inspector-facts > div, .resident-choice li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 0;
+  border-bottom: 1px solid #2d403d;
+  font-size: 12px;
+}
+.village-facts dt, .resident-inspector-facts dt { color: var(--village-muted); }
+.village-facts dd, .resident-inspector-facts dd { margin: 0; text-align: right; }
+.village-supply {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin: 10px 0;
+}
+.village-supply > div { padding-left: 7px; border-left: 1px solid #678879; }
+.village-supply dt { font-size: 11px; color: var(--village-muted); }
+.village-supply dd { margin: 3px 0 0; font-size: 17px; color: var(--village-accent); font-variant-numeric: tabular-nums; }
+
+.resident-inspector header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.resident-inspector header h2 { font-size: 16px; }
+.resident-inspector header button { font-size: 11px; }
+.resident-inspector h3 { margin: 6px 0; color: var(--village-accent); }
+.resident-task-reason, .resident-route-blocked { margin: 6px 0 10px; font-size: 13px; }
+.resident-route-blocked { padding-left: 8px; border-left: 2px solid #e99a7b; }
+.resident-choice ul, .village-event-list { list-style: none; margin: 0; padding: 0; }
+.resident-choice h4 { margin: 10px 0 4px; font-size: 12px; }
+.resident-choice-selected { color: var(--village-accent); }
+.village-event-list li { display: flex; gap: 7px; padding: 6px 0; border-bottom: 1px solid #2d403d; font-size: 11px; }
+.village-event-list time { flex-shrink: 0; color: var(--village-accent); }
+.village-table-scroll { overflow: auto; max-height: 46vh; margin-top: 8px; }
+.village-table-scroll table { border-collapse: collapse; white-space: nowrap; font-size: 11px; }
+.village-table-scroll :is(th, td) { border-bottom: 1px solid var(--village-border); padding: 6px 8px; text-align: left; }
+.village-table-scroll thead { position: sticky; top: 0; background: var(--village-surface); }
+
+.village-map-main {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: #10191d;
+}
+
+.village-map-header, .village-map-tools, .village-map-status {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: 8px 14px;
+  background: #151f22;
+}
+.village-map-header { justify-content: space-between; gap: 8px 14px; flex-wrap: wrap; }
+.village-map-header h1 { margin: 0; font-size: clamp(18px, 2vw, 27px); font-weight: 500; letter-spacing: -.04em; }
+.village-play-controls, .village-map-tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.village-app .village-play-button {
+  min-height: 39px;
+  padding: 7px 13px;
+  border-color: var(--village-accent);
+  background: var(--village-accent);
+  color: #10281d;
+  font-size: 13px;
+  font-weight: 700;
+}
+.village-app .village-play-button:hover:not(:disabled) { background: #bcf3d4; }
+.village-toolbar-field { display: flex; align-items: center; gap: 5px; color: var(--village-muted); font-size: 11px; }
+.village-toolbar-field select { max-width: 140px; }
+.village-map-tools { padding-top: 2px; border-bottom: 1px solid var(--village-border); font-size: 11px; }
+.village-map-tools > button, .village-map-tools .village-drag-controls button { min-height: 33px; }
+.village-drag-controls { display: inline-flex; gap: 2px; }
+.village-side-toggle { margin-left: auto; }
+
+.village-overlay-menu { position: relative; font-size: 11px; }
+.village-overlay-menu summary {
+  padding: 7px 9px;
+  border: 1px solid var(--village-border);
+  border-radius: 4px;
+  background: #182125;
+  cursor: pointer;
+}
+.village-overlay-menu > div {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 4;
+  width: 166px;
+  padding: 8px 9px;
+  border: 1px solid var(--village-border);
+  border-radius: 5px;
+  background: var(--village-surface);
+  box-shadow: 0 5px 15px #0004;
+}
+.village-overlay-menu label { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+
+.village-map-stage { position: relative; min-height: 0; overflow: hidden; }
+.village-map-caption, .village-map-key {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #10191de8;
+  color: #c0cdc6;
+  font-size: 10px;
+  pointer-events: none;
+}
+.village-map-key { left: auto; right: 12px; }
+.village-touch-hint { display: none; }
+@media (pointer: coarse) {
+  .village-pointer-hint { display: none; }
+  .village-touch-hint { display: inline; }
+}
+.village-map-status {
+  gap: 8px 14px;
+  border-top: 1px solid var(--village-border);
+  overflow: hidden;
+  font-size: 12px;
+}
+.village-map-status > [role="status"] { flex-shrink: 0; color: var(--village-accent); }
+.village-latest { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #bbcec5; }
+.village-records-button { margin-left: auto; }
+.village-invite-shortcut { flex-shrink: 0; }
+@media (max-width: 950px) {
+  .village-map-header, .village-map-tools, .village-map-status { padding-left: 10px; padding-right: 10px; }
+  .village-side-toggle { margin-left: 0; }
+}
+@media (max-width: 720px) {
+  .village-layout { display: flex; flex-direction: column; overflow: auto; }
+  .village-map-main { order: -1; flex: 0 0 auto; height: max(500px, 72dvh); }
+  .village-layout-wide .village-map-main { height: 100%; min-height: 480px; }
+  .village-sidebar { flex: 0 0 auto; overflow: visible; border-right: 0; border-top: 1px solid var(--village-border); }
+  .village-map-status { flex-wrap: wrap; }
+  .village-latest { order: 1; flex: 1 1 100%; }
+  .village-map-key { bottom: 30px; right: auto; left: 12px; }
+  .village-map-tools { position: relative; }
+  .village-map-tools .village-toolbar-field > span { display: none; }
+  .village-overlay-menu { position: static; }
+  .village-overlay-menu > div { top: 100%; right: 10px; }
+  .workspace-shell:has(.village-app) .workspace-tabs { min-height: 44px; flex-wrap: wrap; padding: 6px 8px; }
+  .workspace-shell:has(.village-app) .workspace-tabs button { padding: 7px 5px; }
+  .workspace-shell:has(.village-app) .workspace-tabs > span { display: none; }
+}

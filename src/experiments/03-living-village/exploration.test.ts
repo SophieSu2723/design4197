@@ -1,8 +1,9 @@
 import { createWorld, advanceDay, WorldState } from './simulation';
-import { inviteMina, settleMina, movePopulation, routeBetween, suDoor, bridgeZ, hasUnfinishedRoutine } from './population';
+import { inviteMina, settleMina, movePopulation, navigationFor, routeBetween, suDoor, bridgeZ, hasUnfinishedRoutine } from './population';
 import { easternPlaces } from './places';
 import { explorationWeather } from './exploration';
-import { recoverTrails } from './trails';
+import { addFootstep, recoverTrails, Trails } from './trails';
+import { expandValley } from './development';
 
 function settled() {
   const world = createWorld();
@@ -64,4 +65,32 @@ test('repeated decisions to stay at one place are a single visit', () => {
   expect(next.population.su.placeMemories?.clearing?.visits).toBe(1);
   expect(next.population.discoveries).toHaveLength(1);
   expect(Object.keys(next.population.trails ?? {})).toHaveLength(0);
+});
+
+test('repeated footsteps can change the next route, and the preference fades when the path is unused', () => {
+  const start = { x: 28.5, z: -10.5 }, end = { x: 36.5, z: -10.5 };
+  const detour = [start, ...Array.from({ length: 9 }, (_, i) => ({ x: 28.5 + i, z: -9.5 })), end];
+  let trails: Trails = {};
+  for (let pass = 0; pass < 6; pass++) {
+    detour.slice(1).forEach((point, i) => { trails = addFootstep(trails, detour[i], point, 'su', 1); });
+  }
+  const world = expandValley(createWorld());
+  const worn = { ...world, population: { ...world.population, trails } };
+  const preferred = routeBetween(start, end, null, navigationFor(worn));
+  expect(preferred.slice(0, -1)).toEqual(detour);
+  const disabled = { ...worn, population: { ...worn.population, preferWalkedPaths: false } };
+  const direct = routeBetween(start, end, null, navigationFor(disabled));
+  expect(direct.every(point => point.z === -10.5)).toBe(true);
+  let faded = trails;
+  for (let day = 2; day <= 30; day++) faded = recoverTrails(faded, day);
+  expect(routeBetween(start, end, null, { expanded: true, trails: faded })).toEqual(direct);
+});
+
+test('a well-worn bridge never opens a closed crossing', () => {
+  const outbound = routeBetween(suDoor, easternPlaces[0].position);
+  let trails: Trails = {};
+  for (let pass = 0; pass < 6; pass++) {
+    outbound.slice(1).forEach((point, i) => { trails = addFootstep(trails, outbound[i], point, 'su', 1); });
+  }
+  expect(routeBetween(suDoor, easternPlaces[0].position, null, { trails, bridgeClosed: true })).toEqual([]);
 });

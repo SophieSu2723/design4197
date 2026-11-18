@@ -8,7 +8,11 @@ Can the same rain → soil → daily movement chain change *where new vegetation
 
 The seeded landscape now contains invisible potential grass and flower sites. They use a separate random stream, so adding them does not move the existing plants. On each simulated day, after soil and storm effects resolve, each potential site reads its own cell's moisture, fertility and vegetation health, the day's temperature, and wear from **completed footsteps**. Suitable unoccupied ground may germinate according to the live **Seed-bank germination chance** control. Established patches grow gradually; dry, saturated, cold or heavily walked ground can shrink and eventually lose them. Houses and the commissioned shop suppress establishment inside their footprints.
 
-The scene draws each new patch at its accumulated size. The Land & water controls show the number of living new patches, while the cause-and-effect panel shows today's gains and losses and explains the conditions. The control affects the next day and preserves the current world, people and history. A setting of zero stops *new germination*; existing patches still respond to their environment.
+The scene draws each new patch at its accumulated size. The Land & water controls show the number of living new patches, while the cause-and-effect panel shows today's gains and losses and explains the conditions. The control affects the next day and preserves the current world, people and history. A setting of zero stops new germination while existing patches continue to respond to their environment.
+
+Su spots mature wildflower patches within three metres of a walk. On a later suitable day, Su can choose a known, reachable patch, gather two food and return it to the farm reserve. A picked patch shrinks and can regrow under the daily soil rules. Su checks the patch on arrival because its health may have changed since the sighting.
+
+Both residents can prefer well-worn parts of the navigation grid. The day's route costs use earlier footsteps, with up to a 30% discount for the most worn segments. Blocked cells still prevent travel. Inspect a walking resident to see worn portions of the remaining route in green. Toggle **Village → Prefer walked paths** to compare newly planned routes without the discount.
 
 ## Try it
 
@@ -22,4 +26,4 @@ In a browser observation with seed 42 and the default climate, the day-30 panel 
 
 ![Seed-bank growth on day 30: new flowers across the valley and a panel reporting 196 patches](../images/05-seedbank-day30.png)
 
-Potential sites are sampled once from the seed; this is a **latent seed-bank model**, not unrestricted seed dispersal, reproduction, competition or fully simulated succession. New grasses and flowers do not yet change route-finding or soil water demand. The daily world remains step-based rather than evolving in wall-clock time while paused.
+Potential sites are sampled once from the seed. Sightings use proximity, and plant patches can become destinations for Su. Soil water demand continues to use the existing vegetation budget. The daily simulation advances in steps.

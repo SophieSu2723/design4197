@@ -1,5 +1,5 @@
-import { advanceDay, createWorld, defaultParameters, WorldState } from './simulation';
-import { bridgeOpen, developmentDay, developmentOf, expandValley, requestShop, shopDoor, shopOpen, tuneStorm } from './development';
+import { actOnPlot, advanceDay, createWorld, defaultParameters, WorldState } from './simulation';
+import { bridgeOpen, developmentOf, expandValley, requestShop, shopDoor, shopOpen, tuneStorm } from './development';
 import { hasUnfinishedRoutine, inviteMina, movePopulation, navigationFor, routeBetween, settleMina, suDoor } from './population';
 import { easternPlaces } from './places';
 import { cellIndex } from './landscape';
@@ -29,20 +29,90 @@ test('expansion appends real ecological land without replacing inhabited state, 
     expect(routeBetween(suDoor, p.position, expanded.population.settlement!.position, navigationFor(expanded)).length).toBeGreaterThan(0);
   }
 });
-test('shop builds only from two real work visits; opening transfers food and customers consume stock', () => {
+test('shop opens after two completed work visits; a customer can eat from existing stock', () => {
   let w = requestShop(expandValley(setup()));
   expect(w.development!.shop.work).toBe(0);
   w = advanceDay(w, clear); expect(w.development!.shop.work).toBe(0);
   expect(w.population.su.itinerary.some(p => p.target === 'shop')).toBe(true);
   w = finish(w); expect(w.development!.shop.work).toBe(1);
   w = finish(advanceDay(w, clear)); expect(shopOpen(w)).toBe(true);
-  const stocked = developmentDay({ ...w, population: { ...w.population, foodReserve: 20 } }, 0);
-  expect(stocked.population.foodReserve).toBe(16); expect(stocked.development!.shop.stock).toBe(4);
+  expect(developmentOf(w).shop.stock).toBe(0);
+  const d = developmentOf(w);
+  const stocked = { ...w, development: { ...d, shop: { ...d.shop, stock: 4 } } };
   const mina = { ...stocked.population.mina!, position: shopDoor, route: [], itinerary: [{ goal: 'Shop', destination: shopDoor, target: 'shop' as const }], dwellSeconds: 0, lastPlace: 'home' as const, energy: 0.4, socialNeed: 0.5 };
   const served = finish({ ...stocked, population: { ...stocked.population, mina } });
   expect(served.development!.shop.served).toBe(1); expect(served.development!.shop.stock).toBe(3);
   expect(served.population.mina!.energy).toBeCloseTo(0.58);
   expect(served.population.mina!.placeMemories?.shop?.visits).toBe(1);
+});
+
+function deliveryDay(reserveTarget = 0, shopStock = 0) {
+  let world = requestShop(expandValley(createWorld({ ...defaultParameters, rainChance: 0 })));
+  world = finish(advanceDay(world, clear));
+  world = finish(advanceDay(world, clear));
+  // Harvest a ripe plot through the same action as the Farm panel.
+  world = actOnPlot({ ...world, plots: world.plots.map((plot, index) => index === 0
+    ? { ...plot, crop: { growth: 1, health: 1, age: 1, stress: 0 } }
+    : plot) }, 0, 'harvest');
+  const d = developmentOf(world);
+  if (reserveTarget || shopStock) {
+    world = { ...world, development: { ...d, shop: { ...d.shop, stock: shopStock } },
+      population: { ...world.population, foodReserve: reserveTarget || world.population.foodReserve } };
+  }
+  return advanceDay(world, clear);
+}
+
+function until(world: WorldState, condition: (current: WorldState) => boolean) {
+  for (let i = 0; i < 300 && !condition(world); i++) world = movePopulation(world, 0.5);
+  expect(condition(world)).toBe(true);
+  return world;
+}
+
+test('Su moves harvested food from reserve to cargo at the farm, then to stock at the shop', () => {
+  const scheduled = deliveryDay();
+  const originalReserve = scheduled.harvested - 0.5; // one resident's daily food
+  expect(scheduled.population.foodReserve).toBe(originalReserve);
+  expect(developmentOf(scheduled).shop.stock).toBe(0);
+  expect(scheduled.population.su.deliveryLeg).toBe('pickup');
+  const loaded = until(scheduled, w => w.population.su.deliveryLeg === 'dropoff');
+  expect(loaded.population.su.route.length).toBeGreaterThan(0);
+  expect(loaded.population.su.cargoFood).toBe(4);
+  expect(loaded.population.foodReserve).toBe(originalReserve - 4);
+  expect(developmentOf(loaded).shop.stock).toBe(0);
+  const arrived = until(loaded, w => !!developmentOf(w).shop.lastDelivery);
+  expect(arrived.population.su.position).toEqual(shopDoor);
+  expect(arrived.population.su.cargoFood).toBe(0);
+  expect(arrived.population.foodReserve).toBe(originalReserve - 4);
+  expect(developmentOf(arrived).shop.stock).toBe(4);
+  const finished = finish(arrived);
+  expect(developmentOf(finished).shop.stock).toBe(4);
+  expect(developmentOf(finished).shop.served).toBe(0);
+});
+
+test('a blocked delivery keeps the load on Su until repairs let the same load reach the shop', () => {
+  const loaded = until(deliveryDay(), w => w.population.su.deliveryLeg === 'dropoff');
+  const stopped = movePopulation({ ...loaded, development: { ...developmentOf(loaded), bridgeIntegrity: 0.4 } }, 1);
+  expect(stopped.population.su.routeIssue).toBe('interrupted');
+  expect(stopped.population.su.cargoFood).toBe(4);
+  expect(developmentOf(stopped).shop.stock).toBe(0);
+  let world = finish(stopped);
+  for (let day = 0; day < 2; day++) world = finish(advanceDay(world, clear));
+  expect(developmentOf(world).bridgeIntegrity).toBe(1);
+  expect(world.population.su.cargoFood).toBe(4);
+  const resumed = advanceDay(world, clear);
+  expect(resumed.population.su.deliveryLeg).toBe('dropoff');
+  const arrived = finish(resumed);
+  expect(developmentOf(arrived).shop.stock).toBe(4);
+  expect(arrived.population.foodReserve).toBe(resumed.population.foodReserve);
+});
+
+test('pickup respects shelf capacity and leaves the household reserve', () => {
+  const limited = finish(deliveryDay(5, 11.75));
+  expect(developmentOf(limited).shop.stock).toBe(12);
+  expect(limited.population.foodReserve).toBe(4.25);
+  const empty = finish(deliveryDay(4.5));
+  expect(developmentOf(empty).shop.stock).toBe(0);
+  expect(empty.population.foodReserve).toBe(4);
 });
 test('queued storm leaves damage, blocks bridge routes, closes shop and shelters residents; real repairs reopen them', () => {
   let w = requestShop(expandValley(setup()));

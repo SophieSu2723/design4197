@@ -14,7 +14,9 @@ Meadow ridge and Wind lookout are authored landmarks within that land. Su and Mi
 
 The community shop occupies a reserved eastern site. Commissioning shows a foundation and reserves its footprint in navigation. On subsequent dry, calm days, Su replaces exploration with a work visit. Two completed visits on separate days produce the frame and finished shop. Unfinished or unreachable journeys do not advance construction.
 
-An open shop receives up to four food per day from the village harvest reserve, capped at twelve in stock. The transfer retains four in reserve before daily resident consumption. No food is created by the shop. Su visits on every third open day when no repair/construction task takes priority; Mina considers the shop in her weighted choices, at most once per day. A completed customer arrival consumes one food, adds up to 0.18 energy and reduces social need by 0.15. Empty shelves still permit social visits. Construction and repair visits are counted in the visit total but do not consume meals. Harvest and collective replanting remain user actions.
+After construction and repairs, Su can collect up to four food at the farm gate on a day with a reachable, open shop. Pickup moves the food from the harvest reserve to Su's crate, leaving at least four food for the village at that moment. Arrival at the shop moves the load onto the shelves, which hold up to twelve food. If crossing is interrupted, Su keeps the crate and can resume the delivery once the route and shop reopen. The Build panel shows food at the farm, in transit, and on the shelves.
+
+Su visits as a customer on every third open day when there is no work or delivery. Mina considers the shop in her weighted choices, at most once per day. A completed customer arrival consumes one food, adds up to 0.18 energy and reduces social need by 0.15. Empty shelves still permit social visits. Construction, repair and delivery visits count toward the visit total. Harvest and collective replanting remain user actions.
 
 Construction and repairs currently require visits rather than currency, timber or a labor-duration model. The shop is a community food store, with no prices or cash economy.
 
@@ -36,7 +38,7 @@ Damaged plant sites recover by 3.5 points on calm days when local soil moisture 
 
 1. For a fresh controlled run, choose **Start exploration study** first; that action explicitly replaces the run and settles Mina. To retain an existing run, skip this step.
 2. Choose **Open eastern ridge**, then **Commission shop**. Use **Run world** or **Play 30 days**. The shop frame appears after Su's first completed work visit; the second completes it.
-3. Choose **View ridge & shop** or **Follow Su**. Harvest ripe crops to supply the shop; no stock appears until there is a real surplus.
+3. Harvest ripe crops in **Farm → Farm overview & bulk actions**. With surplus food, an open shop and a usable bridge, advance a day and use **Follow Su** to watch the pickup and delivery. The crate appears at the farm gate, then the shop stock rises when Su reaches the door.
 4. Choose **Queue one storm** with peak wind around 90 km/h. On the next day, inspect fallen trees, broken planks, barriers, roof damage, closed labels, soil moisture and the action journal.
 5. Keep storm probability at zero to observe repair. Playback completes actual work journeys before advancing another day. Plant recovery also requires suitable moisture, so prolonged drought delays it.
 
