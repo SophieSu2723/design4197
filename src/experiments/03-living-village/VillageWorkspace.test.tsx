@@ -3,10 +3,11 @@ import { act, fireEvent, render, screen, cleanup, within } from '@testing-librar
 import VillageWorkspace from './VillageWorkspace';
 import { createWorld, advanceDay, advanceDays, actOnPlot } from './simulation';
 import { inviteMina, movePopulation, settleMina, hasUnfinishedRoutine } from './population';
-jest.mock('./rendering/FarmView', () => () => <div>Farm placeholder</div>);
+jest.mock('./rendering/FarmView', () => ({ onSelect }: { onSelect: (id: number) => void }) => <button onClick={() => onSelect(0)}>Select plot 1 on map</button>);
 afterEach(() => { cleanup(); jest.useRealTimers(); });
 test('expansion, shop commissioning and storm controls preserve the current run', () => {
   render(<VillageWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'Build' }));
   const build = screen.getByRole('button', { name: 'Commission shop' }) as HTMLButtonElement;
   expect(build.disabled).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Open eastern ridge' }));
@@ -17,6 +18,7 @@ test('expansion, shop commissioning and storm controls preserve the current run'
   fireEvent.change(screen.getByRole('slider', { name: 'Peak storm wind (km/h)' }), { target: { value: '100' } });
   fireEvent.click(screen.getByRole('button', { name: 'Queue one storm' }));
   expect(screen.getByRole('button', { name: 'Cancel queued storm' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Climate' }));
   expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 0');
 });
 test('climate sliders edit the ongoing world without resetting its day or observations', () => {
@@ -33,11 +35,14 @@ test('climate sliders edit the ongoing world without resetting its day or observ
 });
 test('settled-life entry exposes memory process and prevents skipping unfinished walks', () => {
   render(<VillageWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'Village' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start settled-life study' }));
   expect(screen.getByText('0 completed arrivals')).toBeTruthy();
   expect(screen.getByRole('progressbar', { name: 'Su’s farm familiarity' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Climate' }));
   expect((screen.getByRole('button', { name: 'Advance 1 day' }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole('button', { name: 'Advance 30 days' }) as HTMLButtonElement).disabled).toBe(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Village' }));
   const toggle = screen.getByRole('checkbox', { name: 'Let familiarity influence future choices' });
   fireEvent.click(toggle);
   expect(screen.getByText('Memory influence paused')).toBeTruthy();
@@ -82,14 +87,19 @@ test('playback waits for Su even without Mina, pauses, and stops after 30 comple
 });
 test('exploration study starts a dry settled scenario and expanded/follow views preserve it', () => {
   jest.useFakeTimers(); render(<VillageWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'Village' }));
   fireEvent.click(screen.getByRole('button', { name: 'Start exploration study' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Climate' }));
   expect((screen.getByRole('slider', { name: 'Spring rain probability' }) as HTMLInputElement).value).toBe('0');
   expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Running');
+  fireEvent.click(screen.getByRole('button', { name: 'Village' }));
   fireEvent.change(screen.getByRole('combobox', { name: 'Camera view' }), { target: { value: 'mina' } });
   fireEvent.click(screen.getByRole('button', { name: 'Expand world' }));
   expect(screen.getByRole('button', { name: 'Show sidebar' }).getAttribute('aria-pressed')).toBe('true');
-  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 0');
   fireEvent.click(screen.getByRole('button', { name: 'Show sidebar' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Climate' }));
+  expect(screen.getByRole('status', { name: 'Farm simulation status' }).textContent).toContain('Day 0');
+  fireEvent.click(screen.getByRole('button', { name: 'Village' }));
   expect(screen.getByText('0 completed arrivals')).toBeTruthy();
 });
 
@@ -100,6 +110,7 @@ test('population sidebar invites a real visitor and supports cancelling placemen
   for (let i = 0; i < 1000; i++) world = movePopulation(world, 0.1);
   function Harness() { const [state, setState] = useState(world); return <VillageWorkspace world={state} setWorld={setState} />; }
   render(<Harness />);
+  fireEvent.click(screen.getByRole('button', { name: 'Village' }));
   expect(screen.getByRole('button', { name: 'INVITE TO STAY' })).toBeTruthy();
   expect(screen.getByRole('status', { name: 'Visitor status' }).textContent).toContain('Mina');
   fireEvent.click(screen.getByRole('button', { name: 'INVITE TO STAY' }));
@@ -115,8 +126,20 @@ test('resident Mina exposes behavior diagnostics: goal, target, needs, odds and 
   for (let i = 0; i < 1000; i++) world = movePopulation(world, 0.1);
   world = movePopulation(advanceDay(settleMina(inviteMina(world), { x: -6, z: -16 })), 0.1);
   render(<VillageWorkspace world={world} setWorld={() => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Village' }));
   const panel = screen.getByLabelText('Mina behavior');
   for (const text of ['Current goal', 'Target', 'Energy', 'Social need', 'Odds ·']) expect(panel.textContent).toContain(text);
   expect(screen.getByText('Home → river (walk)')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Behavior target' })).toBeTruthy();
+});
+
+test('clicking a farm plot selects it and watering updates that plot moisture', () => {
+  render(<VillageWorkspace />);
+  fireEvent.click(screen.getByRole('button', { name: 'Select plot 1 on map' }));
+  expect(screen.getByRole('button', { name: 'Farm' }).getAttribute('aria-pressed')).toBe('true');
+  const moisture = screen.getByRole('progressbar', { name: 'Selected plot soil moisture' });
+  expect(moisture.getAttribute('value')).toBe('0.55');
+  fireEvent.click(screen.getByRole('button', { name: 'Water +10 mm' }));
+  expect(screen.getByRole('progressbar', { name: 'Selected plot soil moisture' }).getAttribute('value')).toBe('0.8');
+  expect(screen.getByText('32.0 / 40 mm')).toBeTruthy();
 });

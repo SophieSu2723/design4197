@@ -43,3 +43,88 @@
 @media(max-width:540px){.village-app .place-memory{padding:20px}.village-app .noise-controls{width:100%}}
 .village-actions{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}.village-actions button{font-size:10px;flex:1 1 100px}.village-app .noise-select input{display:block;width:100%;margin-top:8px;padding:7px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:3px}.village-mini-metrics{display:flex;justify-content:space-between;gap:8px;font-size:9px;color:var(--muted);margin-top:16px}.village-mini-metrics b{display:block;color:var(--text);font-weight:400;margin-top:4px}.village-diagnostics{width:290px;max-height:calc(100% - 180px);overflow:auto}.village-diagnostics dl>div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:10px}.village-diagnostics dt{color:var(--muted)}.village-diagnostics dd{color:var(--text);font-variant-numeric:tabular-nums;text-align:right}.village-today{margin-top:16px}.village-today h3{font-size:9px;letter-spacing:1.4px;color:var(--accent);margin-bottom:10px}.village-today p{display:flex;gap:9px;font-size:9px;line-height:1.7;color:var(--muted);margin:7px 0}.village-today time{color:var(--accent);flex-shrink:0}.village-today small{font-size:8px;color:var(--muted)}.village-records{position:absolute;z-index:5;inset:155px 24px 45px;background:#141b1ef5;border:1px solid var(--line);border-radius:4px;padding:18px;display:flex;flex-direction:column;backdrop-filter:blur(12px)}.village-record-heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.village-record-heading h2{font-size:12px;margin-right:auto}.village-record-heading button{font-size:10px}.village-table-scroll{overflow:auto;flex:1;margin-top:10px}.village-table-scroll table{border-collapse:collapse;width:100%;white-space:nowrap;font-size:10px}.village-table-scroll th,.village-table-scroll td{text-align:left;padding:9px;border-bottom:1px solid var(--line)}.village-table-scroll th{position:sticky;top:0;background:var(--panel);color:var(--accent)}@media(max-width:700px){.village-diagnostics{width:auto;max-width:270px;max-height:45%}.village-diagnostics dl>div{font-size:9px;flex-wrap:wrap}.village-records{left:12px;right:12px;padding:10px}.village-app .noise-scene-toolbar>div{flex-wrap:wrap}}@media(max-width:540px){.village-app .noise-layout{display:flex;flex-direction:column;overflow:auto}.village-app .noise-main{order:-1;min-height:650px;height:75dvh;flex-shrink:0}.village-app .noise-controls{height:auto;overflow:visible;border-right:0;border-top:1px solid var(--line)}.village-diagnostics{width:260px;max-height:60%;bottom:40px}.village-app .noise-main-title h2{max-width:none}.village-app .noise-main-title p{max-width:none}}
 .village-population-metrics>div{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:10px}.village-population-metrics dt{color:var(--muted)}.village-population-metrics dd{text-align:right}.village-visitor-notice{position:absolute;right:24px;bottom:50px;z-index:3;max-width:310px;padding:12px;background:#141b1ef0;border:1px solid var(--line);font-size:11px;color:var(--accent)}.village-visitor-notice button{display:block;margin-top:9px}@media(max-width:700px){.village-visitor-notice{top:165px;bottom:auto;left:14px;right:14px;font-size:10px}}
+
+.village-app .noise-layout{grid-template-columns:340px minmax(0,1fr)}
+.village-app .noise-controls{padding:16px 16px 22px;font-size:11px;line-height:1.45}
+.village-app .noise-intro{padding-bottom:0}
+.village-app .noise-intro h1{font-size:21px;margin:6px 0 3px}
+.village-app .noise-controls section{margin-top:15px;padding-top:13px}
+.village-app .noise-controls h2{font-size:11px;margin-bottom:9px}
+.village-app .noise-controls .noise-hint{font-size:10px;line-height:1.5;margin:6px 0}
+.village-app .noise-controls .noise-slider{margin:10px 0}
+.village-app .noise-controls .noise-slider>span,.village-app .noise-controls .noise-slider output{font-size:10px}
+.village-app .noise-controls .control-effect{font-size:10px;line-height:1.4;margin:-3px 0 9px}
+.sidebar-sections{position:sticky;top:-16px;z-index:4;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:9px 0;background:#141b1e;border-bottom:1px solid var(--line)}
+.sidebar-sections button{padding:8px 4px;font-size:10px;white-space:nowrap;color:#aab8b6}
+.sidebar-sections button[aria-pressed="true"]{background:#1d3933;border-color:#589483;color:#95e0c3}
+.sidebar-persistence-note{font-size:9px!important;opacity:.72}
+.selected-plot{margin-top:10px;padding:12px;background:#101b1b;border:1px solid #385249;border-radius:5px}
+.selected-plot-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.selected-plot-heading strong{font-size:13px}.selected-plot-heading span{font-size:10px;color:#a8c9a8}
+.selected-plot label{display:flex;justify-content:space-between;gap:8px;font-size:10px;color:#b8c7c7}
+.selected-plot label output{color:var(--accent)}
+.selected-plot progress{display:block;width:100%;height:7px;margin:7px 0 12px;accent-color:#83c9a2}
+.selected-plot-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:9px;color:#8da19a}
+.selected-plot-facts b{display:block;font-size:10px;font-weight:500;color:#d6e0d9;margin-top:2px}
+.plot-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+.plot-actions button{min-height:34px;padding:6px;font-size:10px}
+.farm-summary{margin-top:12px}
+.farm-summary>div{padding:7px 0!important;font-size:10px!important}
+.farm-summary dd{max-width:56%;font-variant-numeric:tabular-nums}
+.farm-summary-details{margin-top:12px;border:1px solid var(--line);border-radius:4px;padding:9px 10px}
+.farm-summary-details summary{cursor:pointer;color:#b9d1c5;font-size:10px}
+.bulk-plot-actions{margin-top:10px}
+.crop-rules{margin-top:14px;border:1px solid var(--line);border-radius:4px;padding:9px 10px}
+.crop-rules summary{cursor:pointer;color:#b9d1c5;font-size:10px}
+.crop-rules .ecology-control:first-child{margin-top:12px}
+.farm-ecology h2{font-size:14px!important}
+.village-app .farm-ecology .noise-hint{font-size:10px}
+.village-app .farm-ecology .village-population-metrics>div{font-size:10px;padding:7px 0}
+.village-app .farm-ecology .noise-slider>span,.village-app .farm-ecology .noise-slider output{font-size:10px}
+.development-panel{padding:14px 12px!important}
+.village-app .development-panel h2{font-size:19px;margin:8px 0 12px}
+.development-panel p{font-size:11px;line-height:1.45}
+.development-panel article{margin-top:12px;padding:11px}
+.development-panel h3{font-size:13px;margin-bottom:8px}
+.development-panel strong{font-size:12px}
+.development-panel small{font-size:10px;line-height:1.45;margin:7px 0}
+.development-panel button{font-size:11px;min-height:36px;margin-top:7px;padding:7px}
+.development-panel dl>div{padding:6px 0;font-size:10px}
+.development-panel .noise-slider{margin-top:12px}
+.place-memory,.exploration-panel{padding:14px 12px!important}
+.village-app .place-memory h2,.village-app .exploration-panel h2{font-size:18px;line-height:1.25;margin:7px 0 9px}
+.place-memory p,.exploration-panel p{font-size:11px;line-height:1.45;margin:6px 0 9px}
+.place-memory button,.exploration-actions button{font-size:11px;min-height:36px;padding:8px}
+.place-memory small,.exploration-panel small{font-size:10px;line-height:1.45}
+.memory-process{margin:14px 0}
+.memory-process li{padding-bottom:12px;padding-left:12px}
+.memory-process strong{font-size:13px}
+.memory-process p{font-size:11px}
+.memory-places{grid-template-columns:1fr 1fr;gap:7px}
+.memory-places article{padding:9px}
+.memory-places h3{font-size:11px}
+.memory-places b{font-size:16px}
+.memory-places p,.memory-places strong{font-size:10px}
+.exploration-places{grid-template-columns:1fr 1fr;gap:7px}
+.exploration-places article{padding:9px}
+.exploration-places h3{font-size:12px}
+.exploration-places p,.exploration-places article>div{font-size:10px}
+.ecology-story{height:158px;overflow:hidden;padding:10px 16px}
+.ecology-story header{flex-wrap:nowrap}
+.ecology-story h2{font-size:13px;white-space:nowrap}
+.ecology-story>p{font-size:10px;line-height:1.35;margin:5px 0}
+.ecology-story button{font-size:9px;padding:6px 7px;white-space:nowrap}
+.ecology-chain{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+.ecology-chain article{padding-left:8px}
+.ecology-chain b,.ecology-chain span{font-size:9px;line-height:1.35}
+.ecology-chain strong{font-size:12px;margin:2px 0}
+.ecology-chain span,.ecology-story .ecology-explanation{display:none}
+.village-app .noise-scene{bottom:158px}
+.world-playbar{bottom:168px;padding:6px 9px}
+.world-playbar span{font-size:10px}
+.world-playbar button{font-size:11px;padding:6px 8px}
+.village-app .village-diagnostics{bottom:228px;max-height:140px}
+.village-app .village-visitor-notice{bottom:228px}
+@media(max-width:1000px) and (min-width:541px){.village-app .noise-layout{grid-template-columns:300px minmax(0,1fr)}}
+@media(max-width:720px){.ecology-story{height:188px}.village-app .noise-scene{bottom:188px}.world-playbar{bottom:198px}.village-app .village-diagnostics{bottom:252px;max-height:110px}.village-app .village-visitor-notice{bottom:252px}.ecology-chain{grid-template-columns:repeat(2,minmax(0,1fr))}.ecology-story h2{font-size:12px}}
+@media(max-width:540px){.village-app .noise-layout{display:flex;flex-direction:column;overflow:auto}.village-app .noise-main{order:-1;min-height:0;height:72dvh;flex-shrink:0}.village-app .noise-controls{height:auto;overflow:visible;border-right:0;border-top:1px solid var(--line);width:100%}.sidebar-sections{top:0}.ecology-story{height:188px}.village-app .noise-scene{bottom:188px}.world-playbar{bottom:198px}.village-app .village-diagnostics{bottom:252px}.village-app .village-visitor-notice{bottom:auto;top:455px}}
